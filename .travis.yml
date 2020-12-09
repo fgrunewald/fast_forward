@@ -1,0 +1,80 @@
+language: python
+dist: xenial
+cache: pip
+
+branches:
+  only:
+  - master
+  - /^v(?<major>0|[1-9]\d*)\.(?<minor>0|[1-9]\d*)\.(?<patch>0|[1-9]\d*)(?:-(?<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+(?<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/ # SemVer tags (https://github.com/semver/semver/issues/232#issuecomment-405596809)
+
+env:
+  global:
+    - SKIP_GENERATE_AUTHORS=1
+    - SKIP_WRITE_GIT_CHANGELOG=1
+  matrix:
+    WITH_CODECOV=true
+before_install:
+  - pip install --upgrade setuptools pip
+install:
+  # this is needed because polyply at the moment only works with the vermouth
+  # dev version
+  - pip install git+https://github.com/marrink-lab/vermouth-martinize.git#vermouth
+  - pip install --upgrade .
+before_script:
+  - pip install --upgrade -r requirements-tests.txt
+script:
+  - coverage run --source=polyply $(which pytest) -vv polyply
+after_success:
+  - coverage report --omit='*/bin/pytest'
+  - if [[ ${WITH_CODECOV} == true ]]; then codecov; fi
+
+jobs:
+  fast_finish: true
+  allow_failures:
+    - python: "3.6-dev"
+    - python: "3.7-dev"
+    - python: "3.8-dev"
+  include:
+    - python: "3.6"
+    - python: "3.7"
+    - python: "3.8"
+    - python: "3.6-dev"
+    - python: "3.7-dev"
+    - python: "3.8-dev"
+      env: WITH_CODECOV=false
+
+#   - stage: docs
+#     python: "3.7"
+#     install:
+#       - pip install --upgrade -r requirements-docs.txt
+#       - pip install --upgrade .[full]
+#     # script: python setup.py build_sphinx
+#     script: mkdir -p doc/source/_static; sphinx-build -EnW -b html doc/source/ doc/build/html
+#     after_success: skip
+
+    - stage: pylint
+      python: "3.7"
+      install:
+        # for now we need development version
+        - pip install git+https://github.com/marrink-lab/vermouth-martinize.git#vermouth
+        - pip install --upgrade -r requirements-tests.txt
+        - pip install pylint
+      script:
+        - python run_pylint.py --disable=fixme --fail-under=8.0 polyply
+        - python run_pylint.py --disable=fixme --fail-under=9.5 bin/polyply
+      after_success: skip
+
+    - stage: deploy
+      python: "3.7"
+      addons: skip
+      env: WITH_CODECOV=false
+      before_script: skip
+      script: skip
+      deploy:
+          provider: pypi
+          user: __token__
+          password:
+              # travis encrypt --add deploy.password
+              secure: "DYlpbijTZI3EeXlRmR38iIm0NDPNHPOkPoH8GJh2w9so1aucxck63iPQpOBZUZJ1OjXDn2hfxNB/1CfSyZ3fw56vq27dKS903kwCFz+KgojbN68z9+VmUsWPGvp5psM6b5xgjnHazlWe1aLpi2vwgohyOMmNImvPWYpOS/DKQkknRXzc+lYbd4pwHvd8wfuqc/ie0zRoxggsYZbOYP5KCnUiptxuzV/aeFEfIOXHouzWM1qbEglj8LLms0n28A6pnfzAqtzK5VMfeYZ/X8YziwZlvSAe3welDd5U29QN2yFSTbeOnobzPsa4fQk/XF6lukpQ8wV5Vk80Pq9xGm2Ghhx+gwoWhV46muBpMaRUMucR9oWMC7yjO5p9/46yBn1eu5dypXNMiwwptRFBsIcjNJkhJJSWoKzpXDVHN7bBs11sSjRrNuX4KE/lrnnW6OQ7MDimJ3fxXim+ArdW+mWVaGcnW1Z9a5SSlNzbVUvrcuONEGYDC3u2Q2zAuktfK+cx2A4/sU2eNNC7mBq71JpdYJEx0dyPMRIAJGDDUIVV+kZRwEyAxx5/QnL3e73JWxtQLyaaAh55095kYp9RCvmc8/gDsIY6Z1owR05pAed4jCBnT6oc4ABUAOdj5DOtSk3CdxzCX8bJMB2b6j6rC71IZOoc4vxhmnYeLd2Ker2GfQc="
+          on:
+              tags: true

@@ -1,0 +1,122 @@
+#!/usr/bin/env python3
+
+# Copyright 2020 University of Groningen
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""
+Perform the parsing and input redirect for the
+different subcommands. This is the main executable.
+"""
+import argparse
+import pathlib
+import MDAnalysis as mda
+import vermouth
+import vermouth.forcefield
+import pycgmap
+import pycgmap.mapping
+from MDAnalysis import transformations
+
+VERSION = 'pycgmap version {}'.format(pycgmap.__version__)
+
+def main():
+    """
+    Parses commandline arguments and perform transformation.
+    """
+
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+
+    parser.add_argument('-V', '--version', action='version', version=VERSION)
+
+
+    file_group = parser.add_argument_group('Input Files')
+    file_group.add_argument('-f', dest='traj', required=True, type=str,
+                            help='trajectory file (XTC/TRR/GRO/PDB ...)')
+    file_group.add_argument('-s', dest='tpr', required=True, type=str,
+                            help='GROMACS tpr file (TPR)')
+    file_group.add_argument('-itp', dest='itp', required=True, type=str,
+                            help='dummy itp file')
+    file_group.add_argument('-o', dest='outpath', type=str,
+                            help='output ITP (ITP)')
+    file_group.add_argument('-n', dest='index', type=str,
+                            help='index file (NDX)')
+
+    mapping_group = parser.add_argument_group('Mapping Options')
+    mapping_group.add_argument('-map', dest='mode', required=False, type=str,
+                               help='COG or COM mapping', default='COG')
+    mapping_group.add_argument('-merge', dest='merge', required=False, action='store_true',
+                               help='Find equivalent bonds/angles/dihedrals and merge them.')
+
+    args = parser.parse_args()
+
+    # load trajectory
+    universe = mda.Universe(args.tpr, args.traj)
+
+    # load itp file
+    force_field = vermouth.forcefield.ForceField("CG_FF")
+    with open(args.itp) as _file:
+        lines = _file.readlines()
+    vermouth.gmx.itp_read.read_itp(lines, force_field=force_field)
+    molecule = list(force_field.blocks.values())[0]
+
+    # generate mapping dict
+    mapping_dict = pycgmap.mapping.establish_mapping(universe,
+                                                     molecule,
+                                                     ndx_file=args.index)
+    # make trajectory pbc whole
+    whole = mapping_dict[0]
+    for node, atomgroup in mapping_dict.items():
+        if node != 0:
+            whole += atomgroup
+    universe.trajectory.add_transformations(transformations.unwrap(whole))
+
+    # map the universe to cg_universe
+    cg_universe = pycgmap.mapping.create_mda_universe_from_itp(molecule)
+    # transform the aa trajectory to cg
+    cg_universe = pycgmap.mapping.mapping_transformation(universe,
+                                                         molecule,
+                                                         cg_universe,
+                                                         mapping_dict,
+                                                         mode=args.mode)
+    # write coordinate
+    path = pathlib.Path(args.traj)
+    file_extension = path.suffix.casefold()[1:]
+
+    if file_extension == "xtc":
+        cg_beads = cg_universe.atoms
+        with mda.Writer(args.outpath,
+                        multiframe=True,
+                        n_atoms=len(cg_universe.atoms)) as mapped:
+            for time_step in cg_universe.trajectory:
+                mapped.write(cg_beads)
+    else:
+        cg_universe.atoms.positions = cg_universe.trajectory.coordinate_array[0]
+        cg_beads = cg_universe.atoms
+        with mda.Writer(args.outpath,
+                        n_atoms=len(cg_universe.atoms)) as mapped:
+                mapped.write(cg_beads)
+
+    # if redundant is ture find redudant interacitons
+    #if args.merge:
+    #   print("Cannot do this yet.")
+
+    # compute bonds angles etc.
+    #pycgmap.src.compute_interactions(cg_universe, molecule)
+
+    # write itp-file
+   # vermouth.gmx.write_itp("")
+
+if __name__ == '__main__':
+    main()
