@@ -22,9 +22,11 @@ import argparse
 import pathlib
 import MDAnalysis as mda
 import vermouth
+from vermouth.file_writer import open, DeferredFileWriter
 import vermouth.forcefield
 import pycgmap
 import pycgmap.mapping
+import pycgmap.calc_inter
 from MDAnalysis import transformations
 
 VERSION = 'pycgmap version {}'.format(pycgmap.__version__)
@@ -58,39 +60,45 @@ def main():
                                help='COG or COM mapping', default='COG')
     mapping_group.add_argument('-merge', dest='merge', required=False, action='store_true',
                                help='Find equivalent bonds/angles/dihedrals and merge them.')
-
+    mapping_group.add_argument('-T', dest='temp', required=False, default=298.15,
+                               help='temperature')
     args = parser.parse_args()
 
     # load trajectory
     universe = mda.Universe(args.tpr, args.traj)
-
+    universe.transfer_to_memory(verbose=True)
     # load itp file
     force_field = vermouth.forcefield.ForceField("CG_FF")
     with open(args.itp) as _file:
         lines = _file.readlines()
+
     vermouth.gmx.itp_read.read_itp(lines, force_field=force_field)
-    molecule = list(force_field.blocks.values())[0]
+    molecule = list(force_field.blocks.values())[0].to_molecule()
 
     # generate mapping dict
     mapping_dict = pycgmap.mapping.establish_mapping(universe,
                                                      molecule,
                                                      ndx_file=args.index)
     # make trajectory pbc whole
+    print("INFO - Making PBC whole")
     whole = mapping_dict[0]
     for node, atomgroup in mapping_dict.items():
         if node != 0:
             whole += atomgroup
+
     universe.trajectory.add_transformations(transformations.unwrap(whole))
 
     # map the universe to cg_universe
     cg_universe = pycgmap.mapping.create_mda_universe_from_itp(molecule)
     # transform the aa trajectory to cg
+    print("INFO - Mapping universe to CG")
     cg_universe = pycgmap.mapping.mapping_transformation(universe,
                                                          molecule,
                                                          cg_universe,
                                                          mapping_dict,
                                                          mode=args.mode)
     # write coordinate
+    print("INFO - Writing CG trajectory")
     path = pathlib.Path(args.traj)
     file_extension = path.suffix.casefold()[1:]
 
@@ -113,10 +121,17 @@ def main():
     #   print("Cannot do this yet.")
 
     # compute bonds angles etc.
-    #pycgmap.src.compute_interactions(cg_universe, molecule)
-
+    print("INFO - Computing interactions")
+    const = args.temp * 8.314462*10**-3.0
+    pycgmap.calc_inter.compute_interaction_parameters(cg_universe,
+                                                      molecule,
+                                                      const)
     # write itp-file
-   # vermouth.gmx.write_itp("")
+    with open("cg_out.itp", 'w') as outpath:
+        vermouth.gmx.itp.write_molecule_itp(molecule, outpath,
+                                            moltype=molecule.name,
+                                            header=["pycgmap generated itp"])
+    DeferredFileWriter().write()
 
 if __name__ == '__main__':
     main()
