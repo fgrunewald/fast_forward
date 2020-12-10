@@ -13,6 +13,7 @@
 # limitations under the License.
 import numpy as np
 import networkx as nx
+from tqdm import tqdm
 import MDAnalysis as mda
 from MDAnalysis.core.universe import _TOPOLOGY_ATTRS
 from vermouth.graph_utils import make_residue_graph
@@ -38,11 +39,13 @@ def create_mda_universe_from_itp(molecule):
     res_graph = make_residue_graph(molecule)
     node_to_attr = nx.get_node_attributes(molecule, "resid")
     atom_resindex = np.array([node_to_attr[node]-1 for node in sorted(node_to_attr.keys())])
+    res_seg = np.array([ 1 for _ in res_graph.nodes])
 
     cg_universe = mda.Universe.empty(trajectory=True,
                                      n_atoms=n_atoms,
                                      n_residues=len(res_graph.nodes),
-                                     atom_resindex=atom_resindex
+                                     atom_resindex=atom_resindex,
+                                     residue_segindex=res_seg,
                                      )
 
     # assign atom based attributes
@@ -71,7 +74,7 @@ def _center_of_mass(atomgroup):
 
 MAPPING_MODES = {"COG": _center_of_geometry,
                  "COM": _center_of_mass}
-
+#@profile
 def mapping_transformation(universe, molecule, cg_universe, mapping, mode="COG"):
     """
     Take a `universe` and `cg_universe` and generate the positions
@@ -100,12 +103,15 @@ def mapping_transformation(universe, molecule, cg_universe, mapping, mode="COG")
     n_atoms = len(cg_universe.atoms)
     new_trajectory = np.zeros((n_frames, n_atoms, 3))
 
+    pbar = tqdm(total=len(mapping)*len(universe.trajectory))
     for cg_atom, atom_group in mapping.items():
         fdx = 0
         for time_step in universe.trajectory:
             pos = MAPPING_MODES[mode](atom_group)
             new_trajectory[fdx, cg_atom, :] = pos
             fdx += 1
+            pbar.update(1)
+    pbar.close()
 
     dimensions = np.zeros((n_frames, 6))
     for fdx, ts in enumerate(universe.trajectory):
