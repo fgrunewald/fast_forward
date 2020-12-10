@@ -21,13 +21,16 @@ different subcommands. This is the main executable.
 import argparse
 import pathlib
 import MDAnalysis as mda
+from MDAnalysis import transformations
+from MDAnalysis.coordinates.memory import MemoryReader
+from MDAnalysis.analysis.base import AnalysisFromFunction
 import vermouth
 from vermouth.file_writer import open, DeferredFileWriter
 import vermouth.forcefield
 import pycgmap
 import pycgmap.mapping
 import pycgmap.calc_inter
-from MDAnalysis import transformations
+
 
 VERSION = 'pycgmap version {}'.format(pycgmap.__version__)
 
@@ -65,8 +68,7 @@ def main():
     args = parser.parse_args()
 
     # load trajectory
-    universe = mda.Universe(args.tpr, args.traj)
-    universe.transfer_to_memory(verbose=True)
+    init_universe = mda.Universe(args.tpr, args.traj)
     # load itp file
     force_field = vermouth.forcefield.ForceField("CG_FF")
     with open(args.itp) as _file:
@@ -76,16 +78,21 @@ def main():
     molecule = list(force_field.blocks.values())[0].to_molecule()
 
     # generate mapping dict
-    mapping_dict = pycgmap.mapping.establish_mapping(universe,
+    mapping_dict = pycgmap.mapping.establish_mapping(init_universe,
                                                      molecule,
                                                      ndx_file=args.index)
-    # make trajectory pbc whole
-    print("INFO - Making PBC whole")
+
     whole = mapping_dict[0]
     for node, atomgroup in mapping_dict.items():
         if node != 0:
             whole += atomgroup
 
+    print("INFO - Loading Coordinates")
+    universe = mda.Merge(atomgroup).load_new(AnalysisFromFunction(lambda ag: \
+                                                                  ag.positions.copy(),
+                                                                  atomgroup).run().results,
+                                             format=MemoryReader)
+    print("INFO - Making PBC whole")
     universe.trajectory.add_transformations(transformations.unwrap(whole))
 
     # map the universe to cg_universe
