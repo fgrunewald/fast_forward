@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from collections import OrderedDict
 import numpy as np
 import networkx as nx
 from tqdm import tqdm
@@ -120,7 +121,6 @@ def mapping_transformation(universe, molecule, cg_universe, mapping, mode="COG")
     cg_universe.trajectory.coordinate_array = new_trajectory.astype(np.float32)
     cg_universe.trajectory.dimensions_array = dimensions
     cg_universe.trajectory.n_frames = n_frames
-
     return cg_universe
 
 def establish_mapping(universe, molecule, ndx_file=None, res_file=None):
@@ -149,5 +149,5 @@ def establish_mapping(universe, molecule, ndx_file=None, res_file=None):
     else:
         raise IOError("Index file or residue index file needs to be specified.")
 
-    mapping = dict(zip(molecule.nodes, atom_iter))
+    mapping = OrderedDict(zip(molecule.nodes, atom_iter))
     return mapping

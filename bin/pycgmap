@@ -20,6 +20,7 @@ different subcommands. This is the main executable.
 """
 import argparse
 import pathlib
+import numpy as np
 import MDAnalysis as mda
 from MDAnalysis import transformations
 from MDAnalysis.coordinates.memory import MemoryReader
@@ -77,23 +78,41 @@ def main():
     vermouth.gmx.itp_read.read_itp(lines, force_field=force_field)
     molecule = list(force_field.blocks.values())[0].to_molecule()
 
-    # generate mapping dict
+    # generate an ordered (!) mapping dict
     mapping_dict = pycgmap.mapping.establish_mapping(init_universe,
                                                      molecule,
                                                      ndx_file=args.index)
 
-    whole = mapping_dict[0]
-    for node, atomgroup in mapping_dict.items():
-        if node != 0:
-            whole += atomgroup
+    print("INFO - Loading and preparing coordinates")
+    # get one unique atomg group based on the mapping
+    all_atoms = list(mapping_dict.values())[0]
+    for atom_group in list(mapping_dict.values())[1:]:
+        all_atoms = all_atoms.union(atom_group)
 
-    print("INFO - Loading Coordinates")
-    universe = mda.Merge(atomgroup).load_new(AnalysisFromFunction(lambda ag: \
+    # only load and write those atoms that we need
+    universe = mda.Merge(all_atoms).load_new(AnalysisFromFunction(lambda ag: \
                                                                   ag.positions.copy(),
-                                                                  atomgroup).run().results,
+                                                                  all_atoms).run().results,
                                              format=MemoryReader)
+    # copy the dimensions of the box as well
+    dimensions = np.zeros((init_universe.trajectory.n_frames, 6), np.float32)
+    for fdx, ts in enumerate(init_universe.trajectory):
+        dimensions[fdx] = ts.dimensions
+
+    universe.trajectory.dimensions_array = dimensions
+    # we need to establish a new mapping between the original atom-groups
+    # and the new one, note that the order depends on the sequence in unique_atoms
+    for node, atomgroup in mapping_dict.items():
+        new_atoms = []
+        for atom in atomgroup:
+            new_atoms.append(list(all_atoms).index(atom))
+        select_string  = "index " + " ".join(map(str, new_atoms))
+        new_atom_group = universe.select_atoms(select_string)
+        mapping_dict[node] = new_atom_group
+
+    # finally we need a larger atom-group again
     print("INFO - Making PBC whole")
-    universe.trajectory.add_transformations(transformations.unwrap(whole))
+    universe.trajectory.add_transformations(transformations.unwrap(universe.atoms))
 
     # map the universe to cg_universe
     cg_universe = pycgmap.mapping.create_mda_universe_from_itp(molecule)
@@ -129,10 +148,11 @@ def main():
 
     # compute bonds angles etc.
     print("INFO - Computing interactions")
-    const = args.temp * 8.314462*10**-3.0
+    const = 8.314462*10**-3.0
     pycgmap.calc_inter.compute_interaction_parameters(cg_universe,
                                                       molecule,
-                                                      const)
+                                                      temp=args.temp,
+                                                      gas_const=const)
     # write itp-file
     with open("cg_out.itp", 'w') as outpath:
         vermouth.gmx.itp.write_molecule_itp(molecule, outpath,
