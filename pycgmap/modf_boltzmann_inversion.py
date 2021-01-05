@@ -61,27 +61,29 @@ def modf_blotzmann_inversion(inter_type, interaction, distances, temp=298.15, ga
     elif inter_type == "angles":
         vectors =  [distances[:, 0, :], distances[:, 1, :]]
 
-    distr = np.fromiter(NORMAL_FUNCS[inter_type](*vectors), dtype=float)
+    time_series = np.fromiter(NORMAL_FUNCS[inter_type](*vectors), dtype=float)
+    filename = inter_type + "-" + str(func_type) + "_" + "_".join(map(str, list(interaction.atoms))) + ".xvg"
+    np.savetxt(filename, time_series)
     # all normal ordered functions which are cosine harmonic
     # have interaction type 2
-    avg = np.average(distr)
+    avg = np.average(time_series)
 
     if func_type == "1" and inter_type == "angles":
-        distr = np.deg2rad(distr)
-        sig = np.std(distr)
+        time_series = np.deg2rad(time_series)
+        sig = np.std(time_series)
         k = const/(sig**2.*np.sin(np.deg2rad(avg))**2.0)
 
     elif func_type == "2" and inter_type == "bonds":
-        sig = np.std(distr)
+        sig = np.std(time_series)
         k = const/(sig**2.*np.sin(avg)**2.0)
 
     if func_type == "2" and inter_type == "angles":
-        distr = np.deg2rad(distr)
-        sig = np.std(distr)
+        time_series = np.deg2rad(time_series)
+        sig = np.std(time_series)
         k = const/(sig**2.*np.sin(np.deg2rad(avg))**2.0)
 
     else:
-        sig = np.std(distr)
+        sig = np.std(time_series)
         k = const/sig**2.
 
     # constraints don't get a force constant

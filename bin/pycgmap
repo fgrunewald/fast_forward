@@ -67,7 +67,7 @@ def main():
     mapping_group.add_argument('-T', dest='temp', required=False, default=298.15,
                                help='temperature')
     mapping_group.add_argument('-method', dest='inter_mode', required=False, type=str,
-                               help='', default='symfit_boltz')
+                               help='', default='modf_boltz')
     args = parser.parse_args()
 
     # load trajectory

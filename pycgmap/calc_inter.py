@@ -16,7 +16,7 @@ from .interaction_class import InteractionUniverse
 from .modf_boltzmann_inversion import modf_blotzmann_inversion
 from .symfit_boltzmann_inversion import symfit_interactions
 
-METHODS = {"modf_blotz": modf_blotzmann_inversion,
+METHODS = {"modf_boltz": modf_blotzmann_inversion,
            "symfit_boltz": symfit_interactions}
 
 def compute_interaction_parameters(universe, molecule, mode, temp=298.15, gas_const=8.314):
