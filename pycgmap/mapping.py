@@ -109,7 +109,7 @@ def mapping_transformation(universe, molecule, cg_universe, mapping, mode="COG")
         fdx = 0
         for time_step in universe.trajectory:
             pos = MAPPING_MODES[mode](atom_group)
-            new_trajectory[fdx, cg_atom, :] = pos
+            new_trajectory[fdx, cg_atom, :] = pos /10.
             fdx += 1
             pbar.update(1)
     pbar.close()
