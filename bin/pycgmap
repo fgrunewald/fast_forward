@@ -66,6 +66,8 @@ def main():
                                help='Find equivalent bonds/angles/dihedrals and merge them.')
     mapping_group.add_argument('-T', dest='temp', required=False, default=298.15,
                                help='temperature')
+    mapping_group.add_argument('-method', dest='inter_mode', required=False, type=str,
+                               help='', default='symfit_boltz')
     args = parser.parse_args()
 
     # load trajectory
@@ -151,6 +153,7 @@ def main():
     const = 8.314462*10**-3.0
     pycgmap.calc_inter.compute_interaction_parameters(cg_universe,
                                                       molecule,
+                                                      mode=args.inter_mode,
                                                       temp=args.temp,
                                                       gas_const=const)
     # write itp-file

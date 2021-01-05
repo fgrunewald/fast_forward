@@ -91,15 +91,3 @@ def modf_blotzmann_inversion(inter_type, interaction, distances, temp=298.15, ga
         interaction.parameters[:] = [func_type, avg, k]
 
     return interaction
-
-def symfit_interactions(inter_type, interaction, distances, temp=298.15, gas_const=8.314):
-    # compute RT
-    const = temp * gas_const
-    # compute pair vectors and make distribution
-    func_type = interaction.parameters[0]
-    if inter_type == 'bonds':
-        vectors = [distances[:, 0, :]]
-    elif inter_type == "angles":
-        vectors =  [distances[:, 0, :], distances[:, 1, :]]
-
-    distr = np.fromiter(ENER_FUNCS[inter_type](*vectors), dtype=float)

@@ -14,8 +14,12 @@
 from tqdm import tqdm
 from .interaction_class import InteractionUniverse
 from .modf_boltzmann_inversion import modf_blotzmann_inversion
+from .symfit_boltzmann_inversion import symfit_interactions
 
-def compute_interaction_parameters(universe, molecule, temp=298.15, gas_const=8.314):
+METHODS = {"modf_blotz": modf_blotzmann_inversion,
+           "symfit_boltz": symfit_interactions}
+
+def compute_interaction_parameters(universe, molecule, mode, temp=298.15, gas_const=8.314):
     """
     Parameters:
     -----------
@@ -35,11 +39,11 @@ def compute_interaction_parameters(universe, molecule, temp=298.15, gas_const=8.
     # for each interaction compute parameters
     pbar = tqdm(total=interactions.n_interactions)
     for inter_type, inter, pair_dists, idx in interactions:
-        inter = modf_blotzmann_inversion(inter_type,
-                                         inter,
-                                         pair_dists,
-                                         temp=temp,
-                                         gas_const=gas_const)
+        inter = METHODS[mode](inter_type,
+                              inter,
+                              pair_dists,
+                              temp=temp,
+                              gas_const=gas_const)
         # update the interaction in the molecule
         interactions.molecule.interactions[inter_type][idx] = inter
         pbar.update(1)
