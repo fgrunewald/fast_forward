@@ -31,7 +31,8 @@ def get_pairs(inter_type, inter):
     """
     if inter_type in ["bonds", "constraints", "angles", "dihedrals"]:
         return list(zip(inter.atoms[:-1], inter.atoms[1:]))
-
+    elif inter_type in ["virtual_sitesn", "exclusions"]:
+        return [ (inter.atoms[0], atom) for atom in inter.atoms[1:]]
     return []
 
 def extract_pairs(molecule):
@@ -51,7 +52,7 @@ def extract_pairs(molecule):
         set of all pair interactions involved in interactions
     """
     pairs = set()
-    for inter_type in ["bonds", "constraints", "dihedrals", "angles"]:
+    for inter_type in ["bonds", "constraints", "dihedrals", "angles", "virtual_sitesn", "exclusions"]:
         for inter in molecule.interactions[inter_type]:
             pair_list = get_pairs(inter_type, inter)
             for pair in pair_list:

@@ -56,7 +56,7 @@ def modf_blotzmann_inversion(inter_type, interaction, distances, temp=298.15, ga
     const = temp * gas_const
     # compute pair vectors and make distribution
     func_type = interaction.parameters[0]
-    if inter_type == 'bonds':
+    if inter_type == 'bonds' or inter_type == "constraints":
         vectors = [distances[:, 0, :]]
     elif inter_type == "angles":
         vectors =  [distances[:, 0, :], distances[:, 1, :]]
