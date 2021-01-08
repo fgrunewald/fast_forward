@@ -129,8 +129,7 @@ def main():
     print("INFO - Writing CG trajectory")
     path = pathlib.Path(args.traj)
     file_extension = path.suffix.casefold()[1:]
-
-    if file_extension == "xtc":
+    if file_extension in ["xtc", "trr"]:
         cg_beads = cg_universe.atoms
         with mda.Writer(args.outpath,
                         multiframe=True,
