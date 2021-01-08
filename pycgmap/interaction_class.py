@@ -29,8 +29,10 @@ def get_pairs(inter_type, inter):
     --------
     np.ndarray.slice
     """
-    if inter_type in ["bonds", "constraints", "angles", "dihedrals"]:
+    if inter_type in ["bonds", "constraints", "dihedrals"]:
         return list(zip(inter.atoms[:-1], inter.atoms[1:]))
+    elif inter_type in ["angles"]:
+        return [(inter.atoms[0], inter.atoms[1]), (inter.atoms[2], inter.atoms[1])]
     elif inter_type in ["virtual_sitesn", "exclusions"]:
         return [ (inter.atoms[0], atom) for atom in inter.atoms[1:]]
     return []
@@ -124,7 +126,7 @@ class InteractionUniverse:
                 except IndexError:
                     raise StopIteration
 
-            pairs_idxs = [ self.get_pair_index(pair) for pair in zip(interaction.atoms[:-1], interaction.atoms[1:])]
+            pairs_idxs = [ self.get_pair_index(pair) for pair in get_pairs(inter_type, interaction)]
             dists = self.pair_distances[:, pairs_idxs, :]
 
             return inter_type, interaction, dists, idx
@@ -139,11 +141,11 @@ class InteractionUniverse:
 
         idx = 0
         for atom_1, atom_2 in self.pairs:
-            key = frozenset([atom_1, atom_2])
+            key = (atom_1, atom_2)
             self.pair_to_idx[key] = idx
             fdx = 0
             for _ in self.universe.trajectory:
-                coordinates = self.universe.atoms.positions
+                coordinates = self.universe.atoms.positions/10.
                 self.pair_distances[fdx, idx, :] = coordinates[atom_1] - coordinates[atom_2]
                 fdx += 1
             idx += 1
@@ -167,5 +169,5 @@ class InteractionUniverse:
         --------
         np.ndarray.slice
         """
-        pair = frozenset(list(pair))
+        pair = tuple(pair)
         return self.pair_to_idx[pair]
