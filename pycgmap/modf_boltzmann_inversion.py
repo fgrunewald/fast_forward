@@ -12,11 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import numpy as np
-from .linalg_functions import vector_angle_degrees
+from .linalg_functions import vector_angle_degrees, dihedral_angle
 
 def _vector_angle_matrix(matrix_a, matrix_b):
     for v1, v2 in zip(matrix_a, matrix_b):
         yield vector_angle_degrees(v1, v2)
+
+def _dihedral_angle_matrix(matrix_a, matrix_b, matrix_c):
+    for v1, v2, v3 in zip(matrix_a, matrix_b, matrix_c):
+        yield dihedral_angle(v1, v2, v3)
 
 def _bond_distance_matrix(matrix_a):
     for v1 in matrix_a:
@@ -24,7 +28,8 @@ def _bond_distance_matrix(matrix_a):
 
 NORMAL_FUNCS = {"angles": _vector_angle_matrix,
                 "bonds": _bond_distance_matrix,
-                "constraints": _bond_distance_matrix
+                "constraints": _bond_distance_matrix,
+                "dihedrals": _dihedral_angle_matrix
                }
 
 def modf_blotzmann_inversion(inter_type, interaction, distances, temp=298.15, gas_const=8.314):
@@ -60,6 +65,8 @@ def modf_blotzmann_inversion(inter_type, interaction, distances, temp=298.15, ga
         vectors = [distances[:, 0, :]]
     elif inter_type == "angles":
         vectors =  [distances[:, 0, :], distances[:, 1, :]]
+    elif inter_type == "dihedrals":
+        vectors = [distances[:, 0, :], distances[:, 1, :], distances[:, 2, :]]
 
     time_series = np.fromiter(NORMAL_FUNCS[inter_type](*vectors), dtype=float)
     filename = inter_type + "-" + str(func_type) + "_" + "_".join(map(str, list(interaction.atoms))) + ".xvg"
@@ -67,7 +74,6 @@ def modf_blotzmann_inversion(inter_type, interaction, distances, temp=298.15, ga
     # all normal ordered functions which are cosine harmonic
     # have interaction type 2
     avg = np.average(time_series)
-
     if func_type == "1" and inter_type == "angles":
         time_series = np.deg2rad(time_series)
         sig = np.std(time_series)
@@ -81,7 +87,6 @@ def modf_blotzmann_inversion(inter_type, interaction, distances, temp=298.15, ga
         time_series = np.deg2rad(time_series)
         sig = np.std(time_series)
         k = const/(sig**2.*np.sin(np.deg2rad(avg))**2.0)
-
     else:
         sig = np.std(time_series)
         k = const/sig**2.
@@ -89,6 +94,8 @@ def modf_blotzmann_inversion(inter_type, interaction, distances, temp=298.15, ga
     # constraints don't get a force constant
     if inter_type == "constraints":
         interaction.parameters[:] = [func_type, avg]
+    elif inter_type == "dihedrals":
+        interaction.parameters[:] = [func_type, "not implemented"]
     else:
         interaction.parameters[:] = [func_type, avg, k]
 
