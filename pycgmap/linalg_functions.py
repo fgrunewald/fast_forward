@@ -51,3 +51,22 @@ def _vector_angle_degrees(v1, v2):
 
 # this is the numba implementation
 vector_angle_degrees = jit(_vector_angle_degrees)
+
+def _dih(r1, r2, r3):
+    """
+    Compute dihedral angle between four points,
+    where `B` and `C` are in the center.
+    Paramters
+    ---------
+    A, B, C, D:  numpy.array
+    Returns
+    ---------
+    float
+         angle in degrees
+    """
+    n1 = u_vect(np.cross(r1, r2))
+    n2 = u_vect(np.cross(r2, r3))
+    dih = vector_angle_degrees(n1, n2)
+    return dih
+
+dihedral_angle = jit(_dih)
