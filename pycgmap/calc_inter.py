@@ -19,7 +19,7 @@ from .symfit_boltzmann_inversion import symfit_interactions
 METHODS = {"modf_boltz": modf_blotzmann_inversion,
            "symfit_boltz": symfit_interactions}
 
-KOWN_INTER_TYPES = ["bonds", "angles", "constraints"]
+KOWN_INTER_TYPES = ["bonds", "angles", "constraints", "dihedrals"]
 
 def compute_interaction_parameters(universe, molecule, mode, temp=298.15, gas_const=8.314):
     """
