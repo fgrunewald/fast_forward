@@ -67,6 +67,46 @@ def create_mda_universe_from_itp(molecule):
 
     return cg_universe
 
+def load_n_frames(filenames):
+    """
+    Generate an mda universe from serveral filenames.
+    """
+    u = mda.Universe(filenames[0])
+    n_frames = len(filenames)
+    n_atoms = u.atoms.n_atoms
+    n_residues = len(u.atoms.resids)
+    atom_resindex = np.array([ atom.resindex for atom in u.atoms])
+    res_seg = np.array([ 0 for _ in range(0, n_atoms)])
+
+    new_universe = mda.Universe.empty(trajectory=True,
+                                      n_atoms=n_atoms,
+                                      n_residues=n_residues,
+                                      atom_resindex=atom_resindex,
+                                      residue_segindex=res_seg,
+                                     )
+
+    for attr in ["names", "types", "resnames", "resids"]:
+        values = getattr(u.atoms, attr)
+        new_universe.add_TopologyAttr(attr, values=values)
+
+    positions = np.zeros((n_frames, n_atoms, 3))
+    dimensions = np.zeros((n_frames, 6))
+    positions[0, :, :] = u.atoms.positions
+    dimensions[0, :] = u.atoms.dimensions
+    pbar = tqdm(total=n_frames-1)
+    for fdx, name in enumerate(filenames[1:]):
+        u = mda.Universe(name)
+        positions[fdx+1, :, :] = u.atoms.positions
+        dimensions[fdx+1, :] = u.atoms.dimensions
+        pbar.update(1)
+    pbar.close()
+    new_universe.trajectory.coordinate_array = positions.astype(np.float32)
+    new_universe.trajectory.dimensions_array = dimensions
+    new_universe.trajectory.n_frames = n_frames
+
+    return new_universe
+
+
 def _center_of_geometry(atomgroup):
     return atomgroup.center_of_geometry()
 
