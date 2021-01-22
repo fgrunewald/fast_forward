@@ -58,6 +58,8 @@ def main():
                             help='output ITP (ITP)')
     file_group.add_argument('-n', dest='index', type=str,
                             help='index file (NDX)')
+    file_group.add_argument('-map', dest='mappings', type=str,
+                            help='mapping files')
     file_group.add_argument('-npdbs', dest='npdbs', type=str,
                             help='index file (NDX)', nargs='*')
 
@@ -91,8 +93,8 @@ def main():
 
     # generate an ordered (!) mapping dict
     mapping_dict = pycgmap.mapping.establish_mapping(init_universe,
-                                                     molecule,
-                                                     ndx_file=args.index)
+                                                     ndx_file=args.index,
+                                                     mapping=args.mappings)
 
     print("INFO - Preparing coordinates")
     # get one unique atomg group based on the mapping

@@ -11,15 +11,49 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 import numpy as np
-import networkx as nx
 from tqdm import tqdm
+import networkx as nx
 import MDAnalysis as mda
 from MDAnalysis.core.universe import _TOPOLOGY_ATTRS
 from vermouth.graph_utils import make_residue_graph
 from .contributed import ndx_to_ag
 from MDAnalysis import transformations
+
+def parse_mapping_file(infile):
+    """
+    Read a residue mapping file and return
+    a dict of dicts.
+    """
+    mapping = defaultdict(dict)
+    for line in infile:
+        # skip comments
+        comment_idx = line.find(';')
+        if comment_idx >= 0:
+            line = line[comment_idx:]
+
+        line = line.strip()
+        # set the residue name
+        if line.startswith('['):
+            group_name = line[1:-1].strip()
+        # update the mapping dict
+        else:
+            bead_mapping += line.split()
+            # first bead is the bead name and the rest the AA atoms
+            mapping[group_name][bead_mapping[0]] = bead_mapping[1:]
+
+    return mapping
+
+def res_to_ag(universe, mapping):
+    """
+    Convert a mapping dict to atom_groups
+    """
+    for residue in universe.residues:
+        res_map = mapping(residue.name)
+        for bead, atom_names in res_map.items():
+            atom_ids = np.searchsorted(residue.atoms.names, atom_names)
+            yield atom_ids
 
 def create_mda_universe_from_itp(molecule):
     """
@@ -40,7 +74,7 @@ def create_mda_universe_from_itp(molecule):
     res_graph = make_residue_graph(molecule)
     node_to_attr = nx.get_node_attributes(molecule, "resid")
     atom_resindex = np.array([node_to_attr[node]-1 for node in sorted(node_to_attr.keys())])
-    res_seg = np.array([ 1 for _ in res_graph.nodes])
+    res_seg = np.array([1 for _ in res_graph.nodes])
 
     cg_universe = mda.Universe.empty(trajectory=True,
                                      n_atoms=n_atoms,
@@ -75,8 +109,8 @@ def load_n_frames(filenames):
     n_frames = len(filenames)
     n_atoms = u.atoms.n_atoms
     n_residues = len(u.atoms.resids)
-    atom_resindex = np.array([ atom.resindex for atom in u.atoms])
-    res_seg = np.array([ 0 for _ in range(0, n_atoms)])
+    atom_resindex = np.array([atom.resindex for atom in u.atoms])
+    res_seg = np.array([0 for _ in range(0, n_atoms)])
 
     new_universe = mda.Universe.empty(trajectory=True,
                                       n_atoms=n_atoms,
@@ -115,8 +149,8 @@ def _center_of_mass(atomgroup):
 
 MAPPING_MODES = {"COG": _center_of_geometry,
                  "COM": _center_of_mass}
-#@profile
-def mapping_transformation(universe, molecule, cg_universe, mapping, mode="COG"):
+
+def mapping_transformation(universe, cg_universe, mapping, mode="COG"):
     """
     Take a `universe` and `cg_universe` and generate the positions
     of the cg_universe by mapping the coodinates from universe
@@ -163,7 +197,7 @@ def mapping_transformation(universe, molecule, cg_universe, mapping, mode="COG")
     cg_universe.trajectory.n_frames = n_frames
     return cg_universe
 
-def establish_mapping(universe, molecule, ndx_file=None, res_file=None):
+def establish_mapping(universe, ndx_file=None, res_file=None):
     """
     Given a `universe` and `molecule` use the definitions of beads to
     atoms provided by an index file (`ndx_file`) or a residue mapping
@@ -186,8 +220,17 @@ def establish_mapping(universe, molecule, ndx_file=None, res_file=None):
         with open(ndx_file) as _file:
             lines = _file.readlines()
         atom_iter = ndx_to_ag(universe, lines)
+        nodes = range(0, len(atom_iter))
+        mapping = OrderedDict(zip(nodes, atom_iter))
+    elif res_file:
+        with open(res_file) as _file:
+            lines = _file.readlines()
+        res_mappings = parse_mapping_file(lines)
+        atom_iter = res_to_ag(universe, res_mappings)
+        nodes = range(0, len(atom_iter))
+        mapping = OrderedDict(zip(nodes, atom_iter))
     else:
         raise IOError("Index file or residue index file needs to be specified.")
 
-    mapping = OrderedDict(zip(molecule.nodes, atom_iter))
+
     return mapping
