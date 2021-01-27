@@ -57,14 +57,14 @@ def main():
     file_group.add_argument('-o', dest='outpath', type=str,
                             help='output ITP (ITP)')
     file_group.add_argument('-n', dest='index', type=str,
-                            help='index file (NDX)')
-    file_group.add_argument('-map', dest='mappings', type=str,
-                            help='mapping files')
+                            help='index file (NDX)', required=False)
+    file_group.add_argument('-map', dest='map', type=str, default=None,
+                            help='mapping files', required=False)
     file_group.add_argument('-npdbs', dest='npdbs', type=str,
                             help='index file (NDX)', nargs='*')
 
     mapping_group = parser.add_argument_group('Mapping Options')
-    mapping_group.add_argument('-map', dest='mode', required=False, type=str,
+    mapping_group.add_argument('-mode', dest='mode', required=False, type=str,
                                help='COG or COM mapping', default='COG')
     mapping_group.add_argument('-merge', dest='merge', required=False, action='store_true',
                                help='Find equivalent bonds/angles/dihedrals and merge them.')
@@ -94,7 +94,7 @@ def main():
     # generate an ordered (!) mapping dict
     mapping_dict = pycgmap.mapping.establish_mapping(init_universe,
                                                      ndx_file=args.index,
-                                                     mapping=args.mappings)
+                                                     res_file=args.map)
 
     print("INFO - Preparing coordinates")
     # get one unique atomg group based on the mapping
@@ -138,7 +138,6 @@ def main():
                                                          mapping_dict,
                                                          mode=args.mode)
     # write coordinate
-  #  if args.traj:
     print("INFO - Writing CG trajectory")
     if args.traj:
         path = pathlib.Path(args.traj)
@@ -161,8 +160,8 @@ def main():
                 mapped.write(cg_beads)
 
     # if redundant is ture find redudant interacitons
-    #if args.merge:
-    #   print("Cannot do this yet.")
+    if args.merge:
+       print("Cannot do this yet.")
 
     # compute bonds angles etc.
     print("INFO - Computing interactions")
