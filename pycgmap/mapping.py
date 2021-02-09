@@ -41,7 +41,7 @@ def create_mda_universe_from_itp(molecule):
     node_to_attr = nx.get_node_attributes(molecule, "resid")
     # a small primitive test checking whether the resid numbers are sensible - non-zero  positive integers. 
     # here only a check for the non-zero part
-    if sorted(node_to_attr.keys())[0] < 1:
+    if sorted(node_to_attr.values())[0] < 1:
         raise UserWarning("CG itp topology file contains erroneous residue numbers >resid<. \nHas to be non-zero, positive integer. Stopping.")
     atom_resindex = np.array([node_to_attr[node]-1 for node in sorted(node_to_attr.keys())])
     res_seg = np.array([ 1 for _ in res_graph.nodes])
