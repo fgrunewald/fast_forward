@@ -53,7 +53,9 @@ def main():
     file_group.add_argument('-s', dest='tpr', required=False, type=str,
                             help='GROMACS tpr file (TPR)')
     file_group.add_argument('-itp', dest='itp', required=False, type=str,
-                            help='dummy itp file')
+                            help='dummy itp file', nargs='*')
+    file_group.add_argument('-comp', dest='composition', required=False, type=lambda s: s.split(":"),
+                            help='composition', nargs='*')
     file_group.add_argument('-o', dest='outpath', type=str,
                             help='output ITP (ITP)')
     file_group.add_argument('-n', dest='index', type=str,
@@ -85,12 +87,13 @@ def main():
 
     # load itp file
     force_field = vermouth.forcefield.ForceField("CG_FF")
-    with open(args.itp) as _file:
-        lines = _file.readlines()
+    for _path in args.itp:
+        with open(_path) as _file:
+            lines = _file.readlines()
+        vermouth.gmx.itp_read.read_itp(lines, force_field=force_field)
 
-    vermouth.gmx.itp_read.read_itp(lines, force_field=force_field)
-    molecule = list(force_field.blocks.values())[0].to_molecule()
-
+    molecules = {molname: block.to_molecule() for molname, block in force_field.blocks.items()}
+    print(molecules)
     # generate an ordered (!) mapping dict
     mapping_dict = pycgmap.mapping.establish_mapping(init_universe,
                                                      ndx_file=args.index,
@@ -128,15 +131,16 @@ def main():
     if not args.npdbs:
         universe.trajectory.add_transformations(transformations.unwrap(universe.atoms))
 
-    # map the universe to cg_universe
-    cg_universe = pycgmap.mapping.create_mda_universe_from_itp(molecule)
-    # transform the aa trajectory to cg
     print("INFO - Mapping universe to CG")
+    # map the universe to cg_universe
+    composition = [ (molname, int(count)) for molname, count in args.composition]
+    cg_universe = pycgmap.mapping.create_mda_universe_from_itps(composition, molecules)
+    # transform the aa trajectory to cg
     cg_universe = pycgmap.mapping.mapping_transformation(universe,
-                                                         molecule,
                                                          cg_universe,
                                                          mapping_dict,
                                                          mode=args.mode)
+    print(cg_universe.atoms.positions)
     # write coordinate
     print("INFO - Writing CG trajectory")
     if args.traj:

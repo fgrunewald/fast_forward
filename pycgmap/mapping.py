@@ -39,7 +39,7 @@ def parse_mapping_file(infile):
             group_name = line[1:-1].strip()
         # update the mapping dict
         else:
-            bead_mapping += line.split()
+            bead_mapping = line.split()
             # first bead is the bead name and the rest the AA atoms
             mapping[group_name][bead_mapping[0]] = bead_mapping[1:]
 
@@ -50,12 +50,47 @@ def res_to_ag(universe, mapping):
     Convert a mapping dict to atom_groups
     """
     for residue in universe.residues:
-        res_map = mapping(residue.name)
+        res_map = mapping[residue.resname]
         for bead, atom_names in res_map.items():
-            atom_ids = np.searchsorted(residue.atoms.names, atom_names)
-            yield atom_ids
+            res_atom_ids = [ np.where(residue.atoms.names == name)[0][0] for name in atom_names]
+            atom_ids = residue.atoms.indices[res_atom_ids]
+            yield universe.atoms[atom_ids]
 
-def create_mda_universe_from_itp(molecule):
+def count_nodes(composition, molecules):
+    total = 0
+    for mol_name, n_mols in composition:
+        total += n_mols * len(molecules[mol_name].nodes)
+    return total
+
+def make_residue_graphs(molecules):
+    """
+    Make residues for each molecule in molecules.
+
+    Parameters:
+    -----------
+    molecules: dict[vermouth.molecule.Molecule]
+
+    Returns:
+    --------
+    dict[nx.graph]
+        dict of molename and residue graph
+    """
+    res_graphs = {}
+    for mol_name, mol in molecules.items():
+        res_graph = make_residue_graph(mol)
+        res_graphs[mol_name] = res_graph
+    return res_graphs
+
+def composition_attribute_iter(composition, molecules, attribute):
+    for molname, nmols in composition:
+        molecule = molecules[molname]
+        nodes = molecule.nodes
+        sorted(nodes)
+        for _ in range(nmols):
+            for node in nodes:
+                yield molecule.nodes[node][attribute]
+
+def create_mda_universe_from_itps(composition, molecules):
     """
     Take a `molecule` and generate an :class:`MDAnalysis.core.universe`
     from it, setting all relevant topology attribute
@@ -64,39 +99,37 @@ def create_mda_universe_from_itp(molecule):
 
     Parameters:
     -----------
-    molecule: :class:`vermouth.molecule.Molecule`
+    composition: tuple(int, str)
+        how many molecules, molecule name
+    molecules: dict[:class:`vermouth.molecule.Molecule`]
+        dict of molecules by molname
 
     Returns:
     --------
     :class:`MDAnalysis.core.universe`
     """
-    n_atoms = len(molecule.nodes)
-    res_graph = make_residue_graph(molecule)
-    node_to_attr = nx.get_node_attributes(molecule, "resid")
-    atom_resindex = np.array([node_to_attr[node]-1 for node in sorted(node_to_attr.keys())])
-    res_seg = np.array([1 for _ in res_graph.nodes])
+    n_atoms = count_nodes(composition, molecules)
+    print(n_atoms)
+    res_graphs = make_residue_graphs(molecules)
+    n_residues = count_nodes(composition, res_graphs)
+    res_seg = np.array([1] * n_residues)
+    atom_resindex = np.fromiter(composition_attribute_iter(composition, molecules, "resid"), dtype=int) - 1
 
     cg_universe = mda.Universe.empty(trajectory=True,
                                      n_atoms=n_atoms,
-                                     n_residues=len(res_graph.nodes),
+                                     n_residues=n_residues,
                                      atom_resindex=atom_resindex,
                                      residue_segindex=res_seg,
                                      )
 
     # assign atom based attributes
-    for attr_mda, attr_mol in {"names": "atomname", "types": "atomtype"}.items():
-        node_to_attr = nx.get_node_attributes(molecule, attr_mol)
-        if not node_to_attr:
-            continue
-        values = np.array([node_to_attr[node] for node in sorted(node_to_attr.keys())])
+    for attr_mda, attr_mol in {"names": "atomname", "types": "atype"}.items():
+        values = np.fromiter(composition_attribute_iter(composition, molecules, attr_mol), dtype='S128').astype(str)
         cg_universe.add_TopologyAttr(attr_mda, values=values)
 
     # assign residue based attributes
     for attr_mda, attr_mol in {"resnames": "resname", "resids": "resid"}.items():
-        node_to_attr = nx.get_node_attributes(res_graph, attr_mol)
-        if not node_to_attr:
-            continue
-        values = np.array([node_to_attr[node] for node in sorted(node_to_attr.keys())])
+        values = np.fromiter(composition_attribute_iter(composition, res_graphs, attr_mol), dtype='S128').astype(str)
         cg_universe.add_TopologyAttr(attr_mda, values=values)
 
     return cg_universe
@@ -135,7 +168,7 @@ def load_n_frames(filenames):
         pbar.update(1)
     pbar.close()
     new_universe.trajectory.coordinate_array = positions.astype(np.float32)
-    new_universe.trajectory.dimensions_array = dimensions
+    nS128ew_universe.trajectory.dimensions_array = dimensions
     new_universe.trajectory.n_frames = n_frames
 
     return new_universe
@@ -226,11 +259,10 @@ def establish_mapping(universe, ndx_file=None, res_file=None):
         with open(res_file) as _file:
             lines = _file.readlines()
         res_mappings = parse_mapping_file(lines)
-        atom_iter = res_to_ag(universe, res_mappings)
+        atom_iter = list(res_to_ag(universe, res_mappings))
         nodes = range(0, len(atom_iter))
         mapping = OrderedDict(zip(nodes, atom_iter))
     else:
         raise IOError("Index file or residue index file needs to be specified.")
-
 
     return mapping
