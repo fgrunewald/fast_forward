@@ -48,12 +48,12 @@ def main():
 
 
     file_group = parser.add_argument_group('Input Files')
-    file_group.add_argument('-f', dest='traj', required=False, type=str,
+    file_group.add_argument('-f', dest='traj', required=True, type=str,
                             help='trajectory file (XTC/TRR/GRO/PDB ...)')
     file_group.add_argument('-s', dest='tpr', required=False, type=str,
                             help='GROMACS tpr file (TPR)')
-    file_group.add_argument('-itp', dest='itp', required=False, type=str,
-                            help='dummy itp file')
+    file_group.add_argument('-itps', dest='itps', required=True, type=list, nargs='+',
+                            help='proto itp files for all molecules in form molname:itpfile')
     file_group.add_argument('-o', dest='outpath', type=str,
                             help='output ITP (ITP)')
     file_group.add_argument('-n', dest='index', type=str,
@@ -81,17 +81,16 @@ def main():
     else:
         init_universe = mda.Universe(args.traj)
 
-    # load itp file
+    # load itp file(s)
     force_field = vermouth.forcefield.ForceField("CG_FF")
-    with open(args.itp) as _file:
-        lines = _file.readlines()
-
-    vermouth.gmx.itp_read.read_itp(lines, force_field=force_field)
-    molecule = list(force_field.blocks.values())[0].to_molecule()
+    for filepath in args.itps:
+        with open(filepath) as _file:
+            lines = _file.readlines()
+        vermouth.gmx.itp_read.read_itp(lines, force_field=force_field)
 
     # generate an ordered (!) mapping dict
     mapping_dict = pycgmap.mapping.establish_mapping(init_universe,
-                                                     molecule,
+                                                     force_field,
                                                      ndx_file=args.index)
 
     print("INFO - Preparing coordinates")

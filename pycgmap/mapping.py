@@ -21,48 +21,43 @@ from vermouth.graph_utils import make_residue_graph
 from .contributed import ndx_to_ag
 from MDAnalysis import transformations
 
-def create_mda_universe_from_itp(molecule):
+def create_mda_universe_from_itps(composition, molecules):
     """
     Take a `molecule` and generate an :class:`MDAnalysis.core.universe`
     from it, setting all relevant topology attribute
     stored in molecule. The universe is initalized with a trajectory
     but no coordinates are added even if they are in the molecule.
-
     Parameters:
     -----------
-    molecule: :class:`vermouth.molecule.Molecule`
-
+    composition: tuple(int, str)
+        how many molecules, molecule name
+    molecules: dict[:class:`vermouth.molecule.Molecule`]
+        dict of molecules by molname
     Returns:
     --------
     :class:`MDAnalysis.core.universe`
     """
-    n_atoms = len(molecule.nodes)
-    res_graph = make_residue_graph(molecule)
-    node_to_attr = nx.get_node_attributes(molecule, "resid")
-    atom_resindex = np.array([node_to_attr[node]-1 for node in sorted(node_to_attr.keys())])
-    res_seg = np.array([ 1 for _ in res_graph.nodes])
+    n_atoms = count_nodes(composition, molecules)
+    res_graphs = make_residue_graphs(molecules)
+    n_residues = count_nodes(composition, res_graphs)
+    res_seg = np.array([1] * n_residues)
+    atom_resindex = np.fromiter(composition_attribute_iter(composition, molecules, "resid"), dtype=int) - 1
 
     cg_universe = mda.Universe.empty(trajectory=True,
                                      n_atoms=n_atoms,
-                                     n_residues=len(res_graph.nodes),
+                                     n_residues=n_residues,
                                      atom_resindex=atom_resindex,
                                      residue_segindex=res_seg,
                                      )
 
     # assign atom based attributes
-    for attr_mda, attr_mol in {"names": "atomname", "types": "atomtype"}.items():
-        node_to_attr = nx.get_node_attributes(molecule, attr_mol)
-        if not node_to_attr:
-            continue
-        values = np.array([node_to_attr[node] for node in sorted(node_to_attr.keys())])
+    for attr_mda, attr_mol in {"names": "atomname", "types": "atype"}.items():
+        values = np.fromiter(composition_attribute_iter(composition, molecules, attr_mol), dtype='S128').astype(str)
         cg_universe.add_TopologyAttr(attr_mda, values=values)
 
     # assign residue based attributes
     for attr_mda, attr_mol in {"resnames": "resname", "resids": "resid"}.items():
-        node_to_attr = nx.get_node_attributes(res_graph, attr_mol)
-        if not node_to_attr:
-            continue
-        values = np.array([node_to_attr[node] for node in sorted(node_to_attr.keys())])
+        values = np.fromiter(composition_attribute_iter(composition, res_graphs, attr_mol), dtype='S128').astype(str)
         cg_universe.add_TopologyAttr(attr_mda, values=values)
 
     return cg_universe
@@ -163,31 +158,23 @@ def mapping_transformation(universe, molecule, cg_universe, mapping, mode="COG")
     cg_universe.trajectory.n_frames = n_frames
     return cg_universe
 
-def establish_mapping(universe, molecule, ndx_file=None, res_file=None):
+def establish_mapping(composition, force_field, res_mapping):
     """
-    Given a `universe` and `molecule` use the definitions of beads to
-    atoms provided by an index file (`ndx_file`) or a residue mapping
-    file `res_file`, establish which node in the `molecule` corresponds
-    to which atomgroup part of the universe.
+    Do a mapping bitch.
 
     Parameters:
     -----------
     universe: :class:`MDAnalysis.core.universe`
         the atomistic universe to be mapped
-    molecule: :class:`vermouth.molecule.Molecule`
-    ndx_file: :class:`pathlib.Path`
-    red_file: :class:`pathlib.Path`
+    force_field: :class:`vermouth.molecule.ForceField`
+    mapping: dict[molname]
 
     Returns:
     --------
     dict
     """
-    if ndx_file:
-        with open(ndx_file) as _file:
-            lines = _file.readlines()
-        atom_iter = ndx_to_ag(universe, lines)
-    else:
-        raise IOError("Index file or residue index file needs to be specified.")
+    for molname, mol_atoms in composition.items():
+        mol_graph = force_field[molname]
+        
 
-    mapping = OrderedDict(zip(molecule.nodes, atom_iter))
     return mapping
