@@ -123,7 +123,7 @@ def main():
 
     # finally we need a larger atom-group again
     print("INFO - Making PBC whole")
-    if not args.npdbs:
+    if args.tpr:
         universe.trajectory.add_transformations(transformations.unwrap(universe.atoms))
 
     # map the universe to cg_universe

@@ -95,9 +95,12 @@ def load_n_frames(filenames):
     dimensions[0, :] = u.atoms.dimensions
     pbar = tqdm(total=n_frames-1)
     for fdx, name in enumerate(filenames[1:]):
-        u = mda.Universe(name)
-        positions[fdx+1, :, :] = u.atoms.positions
-        dimensions[fdx+1, :] = u.atoms.dimensions
+        try:
+            u = mda.Universe(name)
+            positions[fdx+1, :, :] = u.atoms.positions
+            dimensions[fdx+1, :] = u.atoms.dimensions
+        except ValueError:
+            raise IOError(name)
         pbar.update(1)
     pbar.close()
     new_universe.trajectory.coordinate_array = positions.astype(np.float32)
