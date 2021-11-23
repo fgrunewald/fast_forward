@@ -66,8 +66,6 @@ class UniverseHandler(mda.Universe):
             self.__n_residues = len(self.molecules.residues)
         return self.__n_residues
 
-    def residues(self):
-        for residue in self.atoms.residues:
-            resid = residue.resid
-            if residue.moltype in self.mol_names:
-                yield residue
+    def res_iter(self):
+        for residue in self.molecules.residues:
+            yield residue

@@ -11,173 +11,108 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from collections import OrderedDict
 import numpy as np
-import networkx as nx
-from tqdm import tqdm
+import numba
+from numba import njit, prange, cuda
 import MDAnalysis as mda
-from MDAnalysis.core.universe import _TOPOLOGY_ATTRS
-from vermouth.graph_utils import make_residue_graph
-from .contributed import ndx_to_ag
-from MDAnalysis import transformations
 
-def create_mda_universe_from_itps(composition, molecules):
+def _selector(atomgroup, indices, names):
+    #idx_string = " ".join(indices)
+    names_string = " ".join(names)
+   # atoms = atomgroup.select_atoms("index " + idx_string + " and name " + names_string)
+    atoms = atomgroup.select_atoms("name " + names_string)
+    return atoms
+
+def create_new_universe(universe, mapped_trajectory, mappings):
     """
-    Take a `molecule` and generate an :class:`MDAnalysis.core.universe`
-    from it, setting all relevant topology attribute
-    stored in molecule. The universe is initalized with a trajectory
-    but no coordinates are added even if they are in the molecule.
-    Parameters:
+    Create a new universe according to the definitions in mappings
+    the old universe, and the mapped trajectory.
+
+    Parameters
     -----------
-    composition: tuple(int, str)
-        how many molecules, molecule name
-    molecules: dict[:class:`vermouth.molecule.Molecule`]
-        dict of molecules by molname
-    Returns:
+    universe :class:`pycgmap.universe_handler.UniverseHandler`
+    mapped_trajectory: np.ndarray
+        coordiante array with shape (n_frames, n_atoms, 3)
+    mappings: dict[:class:`pycgmap.map_parser.Mapping`]
+        a dict of resname, mapping object
+
+    Returns
     --------
     :class:`MDAnalysis.core.universe`
+        the new universe that ties all information
     """
-    n_atoms = count_nodes(composition, molecules)
-    res_graphs = make_residue_graphs(molecules)
-    n_residues = count_nodes(composition, res_graphs)
-    res_seg = np.array([1] * n_residues)
-    atom_resindex = np.fromiter(composition_attribute_iter(composition, molecules, "resid"), dtype=int) - 1
+    # copy the dimensions array
+    n_frames = mapped_trajectory.shape[0]
+    dimensions = np.zeros((n_frames, 6))
+    for fdx, ts in enumerate(universe.trajectory):
+        dimensions[fdx, :] = ts.dimensions
 
+    # create the universe to be returend
+    # initalize some attributes
+    n_residues = universe.n_residues
+    n_atoms = mapped_trajectory.shape[1]
+    res_seg = np.array([1] * n_residues)
+    # to read out these we have to iterate over universe again
+    atom_resindex = []
+    atomnames = []
+    resids = []
+    resnames = []
+    for idx, residue in enumerate(universe.res_iter()):
+        for bead in mappings[residue.resname].beads:
+            atomnames.append(bead)
+            resnames.append(residue.resname)
+            resids.append(idx)
+            atom_resindex.append(idx)
+
+    # now create the empty universe
     cg_universe = mda.Universe.empty(trajectory=True,
                                      n_atoms=n_atoms,
                                      n_residues=n_residues,
                                      atom_resindex=atom_resindex,
                                      residue_segindex=res_seg,
                                      )
-
-    # assign atom based attributes
-    for attr_mda, attr_mol in {"names": "atomname", "types": "atype"}.items():
-        values = np.fromiter(composition_attribute_iter(composition, molecules, attr_mol), dtype='S128').astype(str)
-        cg_universe.add_TopologyAttr(attr_mda, values=values)
-
-    # assign residue based attributes
-    for attr_mda, attr_mol in {"resnames": "resname", "resids": "resid"}.items():
-        values = np.fromiter(composition_attribute_iter(composition, res_graphs, attr_mol), dtype='S128').astype(str)
-        cg_universe.add_TopologyAttr(attr_mda, values=values)
-
-    return cg_universe
-
-def load_n_frames(filenames):
-    """
-    Generate an mda universe from serveral filenames.
-    """
-    u = mda.Universe(filenames[0])
-    n_frames = len(filenames)
-    n_atoms = u.atoms.n_atoms
-    n_residues = len(u.atoms.resids)
-    atom_resindex = np.array([ atom.resindex for atom in u.atoms])
-    res_seg = np.array([ 0 for _ in range(0, n_atoms)])
-
-    new_universe = mda.Universe.empty(trajectory=True,
-                                      n_atoms=n_atoms,
-                                      n_residues=n_residues,
-                                      atom_resindex=atom_resindex,
-                                      residue_segindex=res_seg,
-                                     )
-
-    for attr in ["names", "types", "resnames", "resids"]:
-        values = getattr(u.atoms, attr)
-        new_universe.add_TopologyAttr(attr, values=values)
-
-    positions = np.zeros((n_frames, n_atoms, 3))
-    dimensions = np.zeros((n_frames, 6))
-    positions[0, :, :] = u.atoms.positions
-    dimensions[0, :] = u.atoms.dimensions
-    pbar = tqdm(total=n_frames-1)
-    for fdx, name in enumerate(filenames[1:]):
-        try:
-            u = mda.Universe(name)
-            positions[fdx+1, :, :] = u.atoms.positions
-            dimensions[fdx+1, :] = u.atoms.dimensions
-        except ValueError:
-            raise IOError(name)
-        pbar.update(1)
-    pbar.close()
-    new_universe.trajectory.coordinate_array = positions.astype(np.float32)
-    new_universe.trajectory.dimensions_array = dimensions
-    new_universe.trajectory.n_frames = n_frames
-
-    return new_universe
-
-
-def _center_of_geometry(atomgroup):
-    return atomgroup.center_of_geometry()
-
-def _center_of_mass(atomgroup):
-    return atomgroup.center_of_mass()
-
-MAPPING_MODES = {"COG": _center_of_geometry,
-                 "COM": _center_of_mass}
-#@profile
-def mapping_transformation(universe, molecule, cg_universe, mapping, mode="COG"):
-    """
-    Take a `universe` and `cg_universe` and generate the positions
-    of the cg_universe by mapping the coodinates from universe
-    according to the correspondance in mapping. The mode of mapping
-    can be center-of-geometry (COG) or center-of-mass (COM).
-
-    Parameters:
-    -----------
-    universe: :class:`MDAnalysis.core.universe`
-        the atomistic universe to be mapped
-    cg_universe: :class:`MDAnalysis.core.universe`
-        empty cg_universe with trajectory initialized
-    mapping: dict[int]
-        dict mapping atoms in cg_universe to atomgroups
-        in universe
-    mode: str
-        mapping mode; either COG or COM
-
-    Returns:
-    --------
-    :class:`MDAnalysis.core.universe`
-        cg_universe with trajectory of mapped positions
-    """
-    n_frames = len(universe.trajectory)
-    n_atoms = len(cg_universe.atoms)
-    new_trajectory = np.zeros((n_frames, n_atoms, 3))
-
-    pbar = tqdm(total=len(mapping)*len(universe.trajectory))
-    for cg_atom, atom_group in mapping.items():
-        fdx = 0
-        for time_step in universe.trajectory:
-            pos = MAPPING_MODES[mode](atom_group)
-            new_trajectory[fdx, cg_atom, :] = pos
-            fdx += 1
-            pbar.update(1)
-    pbar.close()
-
-    dimensions = np.zeros((n_frames, 6))
-    for fdx, ts in enumerate(universe.trajectory):
-        dimensions[fdx, :] = ts.dimensions
-
-    cg_universe.trajectory.coordinate_array = new_trajectory.astype(np.float32)
+    # add the coordinates
+    cg_universe.trajectory.coordinate_array = mapped_trajectory
     cg_universe.trajectory.dimensions_array = dimensions
     cg_universe.trajectory.n_frames = n_frames
+
+    # some more labels to make the universe sane
+    cg_universe.add_TopologyAttr("names", values=atomnames)
+    cg_universe.add_TopologyAttr("resnames", values=resnames)
+    cg_universe.add_TopologyAttr("resids", values=resids)
     return cg_universe
 
-def establish_mapping(composition, force_field, res_mapping):
+def forward_map_indices(universe, mappings):
     """
-    Do a mapping bitch.
-
-    Parameters:
-    -----------
-    universe: :class:`MDAnalysis.core.universe`
-        the atomistic universe to be mapped
-    force_field: :class:`vermouth.molecule.ForceField`
-    mapping: dict[molname]
-
-    Returns:
-    --------
-    dict
+    Map the universe atom indices to the new universe.
     """
-    for molname, mol_atoms in composition.items():
-        mol_graph = force_field[molname]
-        
+    mapped_atoms = []
+    bead_idxs = []
+    total_beads = 0
+    for residue in universe.res_iter():
+        resid = residue.resid
+        resname = residue.resname
+        mapping = mappings[resname]
+        for bead_count, bead in enumerate(mapping.beads):
+            idxs = mapping.bead_to_idx[bead]
+            names = mapping.bead_to_atom[bead]
+            atoms = _selector(residue.atoms, idxs, names)
+            mapped_atoms.append(atoms.indices)
+            bead_idxs.append(total_beads)
+            total_beads += 1
+    return mapped_atoms, bead_idxs
 
-    return mapping
+@njit(parallel=True)
+def forward_map_positions(mapped_atoms, bead_idxs, positions, n_frames, mode):
+    new_trajectory = np.zeros((n_frames, len(mapped_atoms), 3))
+    for count_lv1 in prange(len(mapped_atoms)):
+        bead_idx = bead_idxs[count_lv1]
+        atom_idxs = mapped_atoms[count_lv1]
+        for fdx in prange(0, n_frames):
+            new_pos = np.array([0.0, 0.0, 0.0], dtype=np.float32)
+            for atom_idx in atom_idxs:
+                vector = positions[fdx, atom_idx, :]
+                new_pos = new_pos + vector
+            new_pos = new_pos / len(atom_idxs)
+            new_trajectory[fdx, bead_idx, :] = new_pos
+    return new_trajectory
