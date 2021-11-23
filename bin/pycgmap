@@ -21,17 +21,15 @@ different subcommands. This is the main executable.
 import argparse
 import pathlib
 import numpy as np
+import numba
 import MDAnalysis as mda
-from MDAnalysis import transformations
-from MDAnalysis.coordinates.memory import MemoryReader
-from MDAnalysis.analysis.base import AnalysisFromFunction
 import vermouth
 from vermouth.file_writer import open, DeferredFileWriter
 import vermouth.forcefield
 import pycgmap
-import pycgmap.mapping
-import pycgmap.calc_inter
-
+from pycgmap.mapping import create_new_universe, forward_map_positions
+from pycgmap.universe_handler import UniverseHandler
+from pycgmap.map_file_parers import read_mapping
 
 VERSION = 'pycgmap version {}'.format(pycgmap.__version__)
 
@@ -50,9 +48,11 @@ def main():
     file_group = parser.add_argument_group('Input Files')
     file_group.add_argument('-f', dest='traj', required=True, type=str,
                             help='trajectory file (XTC/TRR/GRO/PDB ...)')
-    file_group.add_argument('-s', dest='tpr', required=False, type=str,
+    file_group.add_argument('-s', dest='tpr', required=True, type=str,
                             help='GROMACS tpr file (TPR)')
-    file_group.add_argument('-itps', dest='itps', required=True, type=list, nargs='+',
+    file_group.add_argument('-mols', dest='mol_names', required=True, type=str, nargs='+',
+                            help='molecule names to be considered')
+    file_group.add_argument('-itps', dest='itps', required=False, type=list, nargs='+',
                             help='proto itp files for all molecules in form molname:itpfile')
     file_group.add_argument('-o', dest='outpath', type=str,
                             help='output ITP (ITP)')
@@ -60,10 +60,16 @@ def main():
                             help='index file (NDX)')
     file_group.add_argument('-npdbs', dest='npdbs', type=str,
                             help='index file (NDX)', nargs='*')
+    file_group.add_argument('-mf', dest='map_file', type=str,
+                            help='mapping_file')
 
     mapping_group = parser.add_argument_group('Mapping Options')
-    mapping_group.add_argument('-map', dest='mode', required=False, type=str,
+    mapping_group.add_argument('-mode', dest='mode', required=False, type=str,
                                help='COG or COM mapping', default='COG')
+    mapping_group.add_argument('-pbc', dest='pbc_complete', required=False, type=bool,
+                               help='complete pbc with MDAnalysis; this is slow!', default=False)
+    mapping_group.add_argument('-cores', dest='ncores', required=False, type=int,
+                               help='number of cores to use for mapping', default=1)
     mapping_group.add_argument('-merge', dest='merge', required=False, action='store_true',
                                help='Find equivalent bonds/angles/dihedrals and merge them.')
     mapping_group.add_argument('-T', dest='temp', required=False, default=298.15,
@@ -72,70 +78,49 @@ def main():
                                help='', default='modf_boltz')
     args = parser.parse_args()
 
-    print("INFO - Loading")
+    print("INFO - Loading universe")
     # load trajectory
-    if args.tpr and args.traj:
-        init_universe = mda.Universe(args.tpr, args.traj)
-    elif args.npdbs:
-        init_universe = pycgmap.mapping.load_n_frames(args.npdbs)
+    init_universe = UniverseHandler(args.mol_names,
+                                    args.tpr,
+                                    args.traj,
+                                    in_memory=True)
+    if args.pbc_complete:
+        print("INFO - PBC completeing trajectory")
+        init_universe.pbc_complete()
+
+    print("INFO - Loading mapping files")
+    with open(args.map_file, "r") as _file:
+        lines = _file.readlines()
+    mappings = read_mapping(lines)[0]
+
+    print("INFO - Mapping universe - indices")
+    # first mapp the atom indices
+    mapped_atoms, bead_idxs = pycgmap.mapping.forward_map_indices(init_universe,
+                                                                  mappings)
+    n_frames = len(init_universe.trajectory)
+
+    print("INFO - Mapping universe - positions")
+    mapped_atoms = numba.typed.List(mapped_atoms)
+    bead_idxs = numba.typed.List(bead_idxs)
+
+    # extract the position array from universe
+    # if it's not a trajectory we have to emulate
+    # a single frame
+    path = pathlib.Path(args.traj)
+    file_extension = path.suffix.casefold()[1:]
+    if file_extension in ["xtc", "trr"]:
+        positions = init_universe.trajectory.coordinate_array
     else:
-        init_universe = mda.Universe(args.traj)
+        positions = init_universe.atoms.positions
+        positions = positions.reshape(1, -1, 3)
 
-    # load itp file(s)
-    force_field = vermouth.forcefield.ForceField("CG_FF")
-    for filepath in args.itps:
-        with open(filepath) as _file:
-            lines = _file.readlines()
-        vermouth.gmx.itp_read.read_itp(lines, force_field=force_field)
+    mapped_trajectory = forward_map_positions(mapped_atoms, bead_idxs, positions, n_frames, args.mode)
 
-    # generate an ordered (!) mapping dict
-    mapping_dict = pycgmap.mapping.establish_mapping(init_universe,
-                                                     force_field,
-                                                     ndx_file=args.index)
+    print("INFO - Mapping universe - building pos-array")
+    print(mapped_trajectory)
+    cg_universe = create_new_universe(init_universe, mapped_trajectory, mappings)
 
-    print("INFO - Preparing coordinates")
-    # get one unique atomg group based on the mapping
-    all_atoms = list(mapping_dict.values())[0]
-    for atom_group in list(mapping_dict.values())[1:]:
-        all_atoms = all_atoms.union(atom_group)
-
-    # only load and write those atoms that we need
-    universe = mda.Merge(all_atoms).load_new(AnalysisFromFunction(lambda ag: \
-                                                                  ag.positions.copy(),
-                                                                  all_atoms).run().results,
-                                             format=MemoryReader)
-    # copy the dimensions of the box as well
-    dimensions = np.zeros((init_universe.trajectory.n_frames, 6), np.float32)
-    for fdx, ts in enumerate(init_universe.trajectory):
-        dimensions[fdx] = ts.dimensions
-
-    universe.trajectory.dimensions_array = dimensions
-    # we need to establish a new mapping between the original atom-groups
-    # and the new one, note that the order depends on the sequence in unique_atoms
-    for node, atomgroup in mapping_dict.items():
-        new_atoms = []
-        for atom in atomgroup:
-            new_atoms.append(list(all_atoms).index(atom))
-        select_string  = "index " + " ".join(map(str, new_atoms))
-        new_atom_group = universe.select_atoms(select_string)
-        mapping_dict[node] = new_atom_group
-
-    # finally we need a larger atom-group again
-    print("INFO - Making PBC whole")
-    if args.tpr:
-        universe.trajectory.add_transformations(transformations.unwrap(universe.atoms))
-
-    # map the universe to cg_universe
-    cg_universe = pycgmap.mapping.create_mda_universe_from_itp(molecule)
-    # transform the aa trajectory to cg
-    print("INFO - Mapping universe to CG")
-    cg_universe = pycgmap.mapping.mapping_transformation(universe,
-                                                         molecule,
-                                                         cg_universe,
-                                                         mapping_dict,
-                                                         mode=args.mode)
     # write coordinate
-  #  if args.traj:
     print("INFO - Writing CG trajectory")
     if args.traj:
         path = pathlib.Path(args.traj)
@@ -153,28 +138,36 @@ def main():
     else:
         cg_universe.atoms.positions = cg_universe.trajectory.coordinate_array[0]
         cg_beads = cg_universe.atoms
+        cg_universe.atoms.dimensions = init_universe.atoms.dimensions
         with mda.Writer(args.outpath,
                         n_atoms=len(cg_universe.atoms)) as mapped:
                 mapped.write(cg_beads)
+
+
+    # load itp file(s) if there are any
+    #force_field = vermouth.forcefield.ForceField("CG_FF")
+    #for filepath in args.itps:
+    #    with open(filepath) as _file:
+    #        lines = _file.readlines()
+    #    vermouth.gmx.itp_read.read_itp(lines, force_field=force_field)
 
     # if redundant is ture find redudant interacitons
     #if args.merge:
     #   print("Cannot do this yet.")
 
     # compute bonds angles etc.
-    print("INFO - Computing interactions")
-    const = 8.314462*10**-3.0
-    pycgmap.calc_inter.compute_interaction_parameters(cg_universe,
-                                                      molecule,
-                                                      mode=args.inter_mode,
-                                                      temp=args.temp,
-                                                      gas_const=const)
+    #print("INFO - Computing interactions")
+    #const = 8.314462*10**-3.0
+    #pycgmap.calc_inter.compute_interaction_parameters(cg_universe,
+    #                                                  molecule,
+    #                                                  mode=args.inter_mode,
+    #                                                  temp=args.temp,
+    #                                                  gas_const=const)
     # write itp-file
-    with open("cg_out.itp", 'w') as outpath:
-        vermouth.gmx.itp.write_molecule_itp(molecule, outpath,
-                                            moltype=molecule.name,
-                                            header=["pycgmap generated itp"])
-    DeferredFileWriter().write()
-
+    #with open("cg_out.itp", 'w') as outpath:
+    #    vermouth.gmx.itp.write_molecule_itp(molecule, outpath,
+    #                                        moltype=molecule.name,
+    #                                        header=["pycgmap generated itp"])
+    #DeferredFileWriter().write()
 if __name__ == '__main__':
     main()
