@@ -30,6 +30,7 @@ import pycgmap
 from pycgmap.mapping import create_new_universe, forward_map_positions
 from pycgmap.universe_handler import UniverseHandler
 from pycgmap.map_file_parers import read_mapping
+from pycgmap.calc_inter import compute_interaction_parameters
 
 VERSION = 'pycgmap version {}'.format(pycgmap.__version__)
 
@@ -52,7 +53,7 @@ def main():
                             help='GROMACS tpr file (TPR)')
     file_group.add_argument('-mols', dest='mol_names', required=True, type=str, nargs='+',
                             help='molecule names to be considered')
-    file_group.add_argument('-itps', dest='itps', required=False, type=list, nargs='+',
+    file_group.add_argument('-itps', dest='itps', required=False, type=str, nargs='+',
                             help='proto itp files for all molecules in form molname:itpfile')
     file_group.add_argument('-o', dest='outpath', type=str,
                             help='output ITP (ITP)')
@@ -117,7 +118,6 @@ def main():
     mapped_trajectory = forward_map_positions(mapped_atoms, bead_idxs, positions, n_frames, args.mode)
 
     print("INFO - Mapping universe - building pos-array")
-    print(mapped_trajectory)
     cg_universe = create_new_universe(init_universe, mapped_trajectory, mappings)
 
     # write coordinate
@@ -145,29 +145,31 @@ def main():
 
 
     # load itp file(s) if there are any
-    #force_field = vermouth.forcefield.ForceField("CG_FF")
-    #for filepath in args.itps:
-    #    with open(filepath) as _file:
-    #        lines = _file.readlines()
-    #    vermouth.gmx.itp_read.read_itp(lines, force_field=force_field)
+    force_field = vermouth.forcefield.ForceField("CG_FF")
+    for filepath in args.itps:
+        with open(filepath) as _file:
+            lines = _file.readlines()
+        vermouth.gmx.itp_read.read_itp(lines, force_field=force_field)
 
     # if redundant is ture find redudant interacitons
-    #if args.merge:
-    #   print("Cannot do this yet.")
+    if args.merge:
+       print("Cannot do this yet.")
 
     # compute bonds angles etc.
-    #print("INFO - Computing interactions")
-    #const = 8.314462*10**-3.0
-    #pycgmap.calc_inter.compute_interaction_parameters(cg_universe,
-    #                                                  molecule,
-    #                                                  mode=args.inter_mode,
-    #                                                  temp=args.temp,
-    #                                                  gas_const=const)
-    # write itp-file
-    #with open("cg_out.itp", 'w') as outpath:
-    #    vermouth.gmx.itp.write_molecule_itp(molecule, outpath,
-    #                                        moltype=molecule.name,
-    #                                        header=["pycgmap generated itp"])
-    #DeferredFileWriter().write()
+    print("INFO - Computing interactions")
+    const = 8.314462*10**-3.0
+    for name, molecule in force_field.blocks.items():
+        molecule = molecule.to_molecule()
+        compute_interaction_parameters(cg_universe,
+                                       molecule,
+                                       mode=args.inter_mode,
+                                       temp=args.temp,
+                                       gas_const=const)
+    #  write itp-file
+        with open(name + "_mapped.itp", 'w') as outpath:
+            vermouth.gmx.itp.write_molecule_itp(molecule, outpath,
+                                                moltype=molecule.name,
+                                                header=["pycgmap generated itp"])
+    DeferredFileWriter().write()
 if __name__ == '__main__':
     main()
