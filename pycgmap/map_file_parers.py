@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from collections import defaultdict
+from collections import OrderedDict
 from vermouth.parser_utils import SectionLineParser
 
 class Mapping():
@@ -19,15 +19,20 @@ class Mapping():
     def __init__(self, from_resname, to_resname):
         self.from_resname = from_resname
         self.to_resname = to_resname
-        self.beads = set()
-        self.n_beads = len(self.beads)
-        self.bead_to_idx = defaultdict(list)
-        self.bead_to_atom = defaultdict(list)
+        self.bead_to_idx = OrderedDict()
+        self.bead_to_atom = OrderedDict()
 
     def add_atom(self, bead, idx, atom=None):
         self.bead_to_atom[bead].append(atom)
         self.bead_to_idx[bead].append(idx)
-        self.beads.add(bead)
+
+    @property
+    def beads(self):
+        return list(self.bead_to_idx.keys())
+
+    @property
+    def n_beads(self):
+        return len(self.bead_to_idx)
 
 class MapDirector(SectionLineParser):
 
@@ -41,6 +46,36 @@ class MapDirector(SectionLineParser):
         self.header_actions = {
             ('molecule',): self._new_mapping
         }
+
+    def parse_header(self, line, lineno=0):
+        """
+        Parses a section header with line number `lineno`. Sets
+        :attr:`vermouth.parser_utils.SectionLineParser.section`
+        when applicable. Does not check whether `line` is a valid section
+        header.
+
+        Parameters
+        ----------
+        line: str
+        lineno: str
+
+        Returns
+        -------
+        object
+            The result of calling :meth:`finalize_section`, which is called
+            if a section ends.
+
+        Raises
+        ------
+        KeyError
+            If the section header is unknown.
+        """
+        result = super().parse_header(line, lineno)
+        action = self.header_actions.get(tuple(self.section))
+        if action:
+            action()
+
+        return result
 
     def _new_mapping(self):
         if self.current_mapping:
@@ -67,9 +102,18 @@ class MapDirector(SectionLineParser):
                                        to_resname=to_resname)
         self.current_from = from_resname
 
+    @SectionLineParser.section_parser('martini')
+    def _bead_order(self, line, lineno=0):
+        """
+        defines the order of beads in the final mapped trajectory
+        """
+        tokens = line.split()
+        for bead in tokens:
+            self.current_mapping.bead_to_idx[bead] = []
+            self.current_mapping.bead_to_atom[bead] = []
+
     @SectionLineParser.section_parser('to')
     @SectionLineParser.section_parser('from')
-    @SectionLineParser.section_parser('martini')
     @SectionLineParser.section_parser('mapping')
     @SectionLineParser.section_parser('chiral')
     def _skip_line(self, line, lineno=0):
@@ -80,8 +124,12 @@ class MapDirector(SectionLineParser):
         """
         Parse and store atomtypes section
         """
-        idx, atom, bead = line.split()
-        self.current_mapping.add_atom(idx=idx, atom=atom, bead=bead)
+        tokens = line.split()
+        idx = tokens[0]
+        atom = tokens[1]
+        beads = tokens[2:]
+        for bead in beads:
+            self.current_mapping.add_atom(idx=idx, atom=atom, bead=bead)
 
     def finalize(self, lineno=0):
         """
