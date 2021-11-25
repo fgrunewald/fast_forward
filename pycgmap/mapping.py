@@ -60,9 +60,9 @@ def create_new_universe(universe, mapped_trajectory, mappings):
     for idx, residue in enumerate(universe.res_iter()):
         for bead in mappings[residue.resname].beads:
             atomnames.append(bead)
-            resnames.append(residue.resname)
-            resids.append(idx)
             atom_resindex.append(idx)
+        resids.append(idx)
+        resnames.append(mappings[residue.resname].to_resname)
 
     # now create the empty universe
     cg_universe = mda.Universe.empty(trajectory=True,
