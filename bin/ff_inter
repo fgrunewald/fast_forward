@@ -22,7 +22,7 @@ import pathlib
 import numba
 import MDAnalysis as mda
 import fast_forward
-from fast_forward.compute_interactions import compute_value_for_interaction
+from fast_forward.compute_bonded import compute_value_for_interaction, ndx_to_ag
 
 
 VERSION = 'fast_forward version {}'.format(fast_forward.__version__)
