@@ -20,17 +20,12 @@ different subcommands. This is the main executable.
 """
 import argparse
 import pathlib
-import numpy as np
 import numba
 import MDAnalysis as mda
-import vermouth
-from vermouth.file_writer import open, DeferredFileWriter
-import vermouth.forcefield
 import pycgmap
-from pycgmap.mapping import create_new_universe, forward_map_positions
+from pycgmap.mapping import create_new_universe, forward_map_positions, forward_map_indices
 from pycgmap.universe_handler import UniverseHandler
 from pycgmap.map_file_parers import read_mapping
-from pycgmap.calc_inter import compute_interaction_parameters
 
 VERSION = 'pycgmap version {}'.format(pycgmap.__version__)
 
@@ -51,12 +46,8 @@ def main():
                             help='trajectory file (XTC/TRR/GRO/PDB ...)')
     file_group.add_argument('-s', dest='tpr', required=True, type=str,
                             help='GROMACS tpr file (TPR)')
-    file_group.add_argument('-mols', dest='mol_names', required=True, type=str, nargs='+',
-                            help='molecule names to be considered')
     file_group.add_argument('-o', dest='outpath', type=str,
-                            help='output ITP (ITP)')
-    file_group.add_argument('-npdbs', dest='npdbs', type=str,
-                            help='index file (NDX)', nargs='*')
+                            help='name of the mapped trajectory (XTC/GRO)')
     file_group.add_argument('-mf', dest='map_file', type=str,
                             help='mapping_file')
 
@@ -65,6 +56,8 @@ def main():
                                help='COG or COM mapping', default='COG')
     mapping_group.add_argument('-pbc', dest='pbc_complete', required=False, type=bool,
                                help='complete pbc with MDAnalysis; this is slow!', default=False)
+    mapping_group.add_argument('-mols', dest='mol_names', required=True, type=str, nargs='+',
+                               help='names of molecules to consider when mapping')
     args = parser.parse_args()
 
     print("INFO - Loading universe")
@@ -80,12 +73,13 @@ def main():
     print("INFO - Loading mapping files")
     with open(args.map_file, "r") as _file:
         lines = _file.readlines()
+
     mappings = read_mapping(lines)[0]
 
     print("INFO - Mapping universe - indices")
     # first mapp the atom indices
-    mapped_atoms, bead_idxs = pycgmap.mapping.forward_map_indices(init_universe,
-                                                                  mappings)
+    mapped_atoms, bead_idxs = forward_map_indices(init_universe,
+                                                  mappings)
     n_frames = len(init_universe.trajectory)
 
     print("INFO - Mapping universe - positions")
@@ -102,7 +96,12 @@ def main():
         positions = init_universe.atoms.positions
         positions = positions.reshape(1, -1, 3)
 
-    mapped_trajectory = forward_map_positions(mapped_atoms, bead_idxs, positions, n_frames, args.mode)
+    mapped_trajectory = forward_map_positions(mapped_atoms,
+                                              bead_idxs,
+                                              positions,
+                                              n_frames,
+                                              args.mode)
+
     print("INFO - Mapping universe - building pos-array")
     cg_universe = create_new_universe(init_universe, mapped_trajectory, mappings)
 
@@ -125,9 +124,8 @@ def main():
         cg_universe.atoms.positions = cg_universe.trajectory.coordinate_array[0]
         cg_beads = cg_universe.atoms
         cg_universe.atoms.dimensions = init_universe.atoms.dimensions
-        with mda.Writer(args.outpath,
-                        n_atoms=len(cg_universe.atoms)) as mapped:
-                mapped.write(cg_beads)
+        with mda.Writer(args.outpath, n_atoms=len(cg_universe.atoms)) as mapped:
+            mapped.write(cg_beads)
 
 if __name__ == '__main__':
     main()
