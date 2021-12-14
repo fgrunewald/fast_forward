@@ -14,7 +14,7 @@
 
 import pbr.version
 
-__version__ = pbr.version.VersionInfo('pycgmap').release_string()
+__version__ = pbr.version.VersionInfo('fast_forward').release_string()
 
 # Find the data directory once.
 try:

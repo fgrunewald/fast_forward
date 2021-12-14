@@ -27,7 +27,7 @@ from pycgmap.mapping import create_new_universe, forward_map_positions, forward_
 from pycgmap.universe_handler import UniverseHandler
 from pycgmap.map_file_parers import read_mapping
 
-VERSION = 'pycgmap version {}'.format(pycgmap.__version__)
+VERSION = 'fast_forward version {}'.format(pycgmap.__version__)
 
 def main():
     """
