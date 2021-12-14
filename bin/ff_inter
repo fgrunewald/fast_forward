@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+
+# Copyright 2020 University of Groningen
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""
+Main exe for computing interactions.
+"""
+import argparse
+import pathlib
+import numba
+import MDAnalysis as mda
+import fast_forward
+from fast_forward.compute_interactions import compute_value_for_interaction
+
+
+VERSION = 'fast_forward version {}'.format(fast_forward.__version__)
+
+def __main__():
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter,)
+    parser.add_argument('-f', type=str, dest="trajfile", help="trajectory file")
+    parser.add_argument('-s', type=str, dest="tprfile", help="tpr file", default=None)
+    parser.add_argument('-n', type=str, dest="ndx_file", help="index file")
+    parser.add_argument('-pref', type=str, dest="prefix", help="common prefix to filename", default="")
+
+    args = parser.parse_args()
+
+    # load trajectory
+    if args.tprfile:
+        u = mda.Universe(args.tprfile, args.trajfile, in_memory=True)
+    else:
+        u = mda.Universe(args.trajfile, in_memory=True)
+
+    # loop over all groups in index file
+    for group_name, inter_type, pair_idxs in ndx_to_ag(u, args.ndx_file):
+        time_series = compute_value_for_interaction(u, inter_type, pair_idxs)
+        np.savetxt("{prefix}{name}_{inter_type}.dat".format(name=group_name, inter_type=inter_type, prefix=args.prefix), time_series)
+        probs, edges = np.histogram(time_series, density=True, bins=30)
+        center_points = edges[:-1] + np.diff(edges)/2.
+        distr = np.transpose((center_points, probs))
+        np.savetxt("{prefix}{name}_{inter_type}_distr.dat".format(name=group_name, inter_type=inter_type, prefix=args.prefix), distr)
+
+__main__()
