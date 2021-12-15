@@ -2,6 +2,7 @@ import argparse
 import numpy as np
 from numba import jit, njit, prange
 import MDAnalysis as mda
+from numpy import cross, dot
 
 def _u_vect(vect):
     """
@@ -56,7 +57,7 @@ def _dih(r1, r2, r3):
 
 dihedral_angle = jit(_dih)
 
-@njit(parallel=True)
+#@njit(parallel=True)
 def _fast_pair_dists(arr1, arr2):
     frames = arr1.shape[0]
     pair_dists = np.zeros((frames))
@@ -66,7 +67,7 @@ def _fast_pair_dists(arr1, arr2):
         pair_dists[fdx] = norm
     return pair_dists
 
-@njit(parallel=True)
+#@njit(parallel=True)
 def _fast_angle(arr1, arr2, arr3):
     frames = arr1.shape[0]
     angle= np.zeros((frames))
@@ -76,15 +77,15 @@ def _fast_angle(arr1, arr2, arr3):
         angle[fdx] = vector_angle_degrees(diff1, diff2)
     return angle
 
-@njit(parallel=True)
+#@njit(parallel=True)
 def _fast_dih(arr1, arr2, arr3, arr4):
     frames = arr1.shape[0]
     angle= np.zeros((frames))
-    for fdx in frames:
+    for fdx in prange(frames):
         diff1 = arr1[fdx] - arr2[fdx]
         diff2 = arr3[fdx] - arr2[fdx]
         diff3 = arr3[fdx] - arr4[fdx]
-        angle[fdx] = dihedral_angle(diff1, diff2)
+        angle[fdx] = dihedral_angle(diff1, diff2, diff3)
     return angle
 
 NORMAL_FUNCS = {"angles": _fast_angle,

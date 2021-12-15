@@ -13,17 +13,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """
 Main exe for computing interactions.
 """
 import argparse
 import pathlib
-import numba
+import numpy as np
 import MDAnalysis as mda
+import vermouth.forcefield
 import fast_forward
-from fast_forward.compute_bonded import compute_value_for_interaction, ndx_to_ag
-
+from fast_forward.compute_bonded import compute_value_for_interaction
+from fast_forward.itp_to_ag import itp_to_ag
+from fast_forward.itp_parser_sub import read_itp
 
 VERSION = 'fast_forward version {}'.format(fast_forward.__version__)
 
@@ -33,6 +34,7 @@ def __main__():
     parser.add_argument('-s', type=str, dest="tprfile", help="tpr file", default=None)
     parser.add_argument('-n', type=str, dest="ndx_file", help="index file")
     parser.add_argument('-pref', type=str, dest="prefix", help="common prefix to filename", default="")
+    parser.add_argument('-i', type=str, dest="itp_files", help="itp file", nargs='*')
 
     args = parser.parse_args()
 
@@ -42,13 +44,30 @@ def __main__():
     else:
         u = mda.Universe(args.trajfile, in_memory=True)
 
-    # loop over all groups in index file
-    for group_name, inter_type, pair_idxs in ndx_to_ag(u, args.ndx_file):
-        time_series = compute_value_for_interaction(u, inter_type, pair_idxs)
-        np.savetxt("{prefix}{name}_{inter_type}.dat".format(name=group_name, inter_type=inter_type, prefix=args.prefix), time_series)
-        probs, edges = np.histogram(time_series, density=True, bins=30)
-        center_points = edges[:-1] + np.diff(edges)/2.
-        distr = np.transpose((center_points, probs))
-        np.savetxt("{prefix}{name}_{inter_type}_distr.dat".format(name=group_name, inter_type=inter_type, prefix=args.prefix), distr)
+    # if itp file is provided use it
+    if args.itp_files:
+        ff = vermouth.forcefield.ForceField("dummy")
+        for file_handle in args.itp_files:
+            with open(file_handle) as _file:
+                lines = _file.readlines()
+        read_itp(lines, ff)
+
+        # loop over molecules
+        for molname, block in ff.blocks.items():
+            interaction_groups = itp_to_ag(block, molname, u)
+            for inter_type in ['bonds', 'angles', 'dihedrals']:
+                for group_name, pair_idxs in interaction_groups[inter_type].items():
+                    time_series = compute_value_for_interaction(u, inter_type, pair_idxs)
+                    np.savetxt("{prefix}{name}_{inter_type}.dat".format(name=group_name,
+                                                                        inter_type=inter_type,
+                                                                        prefix=args.prefix),
+                                                                        time_series)
+
+                    probs, edges = np.histogram(time_series, density=True, bins=30)
+                    center_points = edges[:-1] + np.diff(edges)/2.
+                    distr = np.transpose((center_points, probs))
+                    np.savetxt("{prefix}{name}_{inter_type}_distr.dat".format(name=group_name,
+                                                                              inter_type=inter_type,
+                                                                              prefix=args.prefix), distr)
 
 __main__()

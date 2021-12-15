@@ -2,6 +2,7 @@ import argparse
 import numpy as np
 from numba import jit, njit, prange
 import MDAnalysis as mda
+from fast_forward.bonded_functions import NORMAL_FUNCS
 
 def compute_value_for_interaction(universe, inter_type, valid_pairs):
     for idxs in valid_pairs:
