@@ -1,0 +1,131 @@
+#!/usr/bin/env python3
+
+# Copyright 2020 University of Groningen
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""
+Perform the parsing and input redirect for the
+different subcommands. This is the main executable.
+"""
+import argparse
+import pathlib
+import numba
+import MDAnalysis as mda
+import fast_forward
+from fast_forward.mapping import create_new_universe, forward_map_positions, forward_map_indices
+from fast_forward.universe_handler import UniverseHandler
+from fast_forward.map_file_parers import read_mapping
+
+VERSION = 'fast_forward version {}'.format(fast_forward.__version__)
+
+def main():
+    """
+    Parses commandline arguments and perform transformation.
+    """
+
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+
+    parser.add_argument('-V', '--version', action='version', version=VERSION)
+
+
+    file_group = parser.add_argument_group('Input Files')
+    file_group.add_argument('-f', dest='traj', required=True, type=str,
+                            help='trajectory file (XTC/TRR/GRO/PDB ...)')
+    file_group.add_argument('-s', dest='tpr', required=True, type=str,
+                            help='GROMACS tpr file (TPR)')
+    file_group.add_argument('-o', dest='outpath', type=str,
+                            help='name of the mapped trajectory (XTC/GRO)')
+    file_group.add_argument('-mf', dest='map_file', type=str,
+                            help='mapping_file')
+
+    mapping_group = parser.add_argument_group('Mapping Options')
+    mapping_group.add_argument('-mode', dest='mode', required=False, type=str,
+                               help='COG or COM mapping', default='COG')
+    mapping_group.add_argument('-pbc', dest='pbc_complete', required=False, type=bool,
+                               help='complete pbc with MDAnalysis; this is slow!', default=False)
+    mapping_group.add_argument('-mols', dest='mol_names', required=True, type=str, nargs='+',
+                               help='names of molecules to consider when mapping')
+    args = parser.parse_args()
+
+    print("INFO - Loading universe")
+    # load trajectory
+    init_universe = UniverseHandler(args.mol_names,
+                                    args.tpr,
+                                    args.traj,
+                                    in_memory=True)
+    if args.pbc_complete:
+        print("INFO - PBC completeing trajectory")
+        init_universe.pbc_complete()
+
+    print("INFO - Loading mapping files")
+    with open(args.map_file, "r") as _file:
+        lines = _file.readlines()
+
+    mappings = read_mapping(lines)[0]
+
+    print("INFO - Mapping universe - indices")
+    # first mapp the atom indices
+    mapped_atoms, bead_idxs = forward_map_indices(init_universe,
+                                                  mappings)
+    n_frames = len(init_universe.trajectory)
+
+    print("INFO - Mapping universe - positions")
+    mapped_atoms = numba.typed.List(mapped_atoms)
+    bead_idxs = numba.typed.List(bead_idxs)
+    # extract the position array from universe
+    # if it's not a trajectory we have to emulate
+    # a single frame
+    path = pathlib.Path(args.traj)
+    file_extension = path.suffix.casefold()[1:]
+    if file_extension in ["xtc", "trr"]:
+        positions = init_universe.trajectory.coordinate_array
+    else:
+        positions = init_universe.atoms.positions
+        positions = positions.reshape(1, -1, 3)
+
+    mapped_trajectory = forward_map_positions(mapped_atoms,
+                                              bead_idxs,
+                                              positions,
+                                              n_frames,
+                                              args.mode)
+
+    print("INFO - Mapping universe - building pos-array")
+    cg_universe = create_new_universe(init_universe, mapped_trajectory, mappings)
+
+    # write coordinate
+    print("INFO - Writing CG trajectory")
+    if args.traj:
+        path = pathlib.Path(args.traj)
+        file_extension = path.suffix.casefold()[1:]
+    else:
+        file_extension = "xtc"
+
+    if file_extension in ["xtc", "trr"]:
+        cg_beads = cg_universe.atoms
+        with mda.Writer(args.outpath,
+                        multiframe=True,
+                        n_atoms=len(cg_universe.atoms)) as mapped:
+            for time_step in cg_universe.trajectory:
+                mapped.write(cg_beads)
+    else:
+        cg_universe.atoms.positions = cg_universe.trajectory.coordinate_array[0]
+        cg_beads = cg_universe.atoms
+        cg_universe.atoms.dimensions = init_universe.atoms.dimensions
+        with mda.Writer(args.outpath, n_atoms=len(cg_universe.atoms)) as mapped:
+            mapped.write(cg_beads)
+
+if __name__ == '__main__':
+    main()
