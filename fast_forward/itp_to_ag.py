@@ -26,13 +26,12 @@ def itp_to_ag(block, mol_name, universe):
     grouped indices corresponding to the atoms in universe.
     """
     indices_dict = defaultdict(dict)
-    counter = 0
     for inter_type in block.interactions:
         for inter in block.interactions[inter_type]:
             atoms = inter.atoms
-            group = inter.meta.get("comment", counter)
-            indices = find_indices(universe, atoms, mol_name, natoms=len(block.nodes))
-            old_indices = indices_dict[inter_type].get(group, [])
-            indices_dict[inter_type][group] = indices + old_indices
-            counter += 1
+            group = inter.meta.get("comment", None)
+            if group:
+                indices = find_indices(universe, atoms, mol_name, natoms=len(block.nodes))
+                old_indices = indices_dict[inter_type].get(group, [])
+                indices_dict[inter_type][group] = indices + old_indices
     return indices_dict
