@@ -42,7 +42,7 @@ For example, the Martini3 mapping file for Alanine not including the
 hydrogens would look as follows and maps from the CHARMM force-field:
 ```
 [ molecule ]
-ALA
+ALA ALA
 [ martini ]
 BB
 [ atoms ]
