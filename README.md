@@ -17,7 +17,7 @@ that we use the numba library for paralell acceleration.
 
 ## installation
 ```
-git clone https://github.com/fgrunewald/pycgmap.git
+git clone https://github.com/fgrunewald/fast_forward.git
 
 cd fast-forward
 
