@@ -12,8 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from collections import defaultdict
+import numpy as np
 import MDAnalysis as mda
 from MDAnalysis import transformations
+
+
+def dim2lattice(x, y, z, alpha=90, beta=90, gamma=90):
+    """
+    Convert dimensions (lengths/angles) to lattice matrix
+    """
+    cosa = np.cos( np.pi * alpha / 180 )
+    cosb = np.cos( np.pi * beta / 180 )
+    cosg = np.cos( np.pi * gamma / 180 )
+    sing = np.sin( np.pi * gamma / 180 )
+
+    zx = z * cosb
+    zy = z * ( cosa - cosb * cosg ) / sing
+    zz = np.sqrt( z**2 - zx**2 - zy**2 )
+
+    return np.array([x, 0, 0, y * cosg, y * sing, 0, zx, zy, zz]).reshape((3,3))
+
 
 class UniverseHandler(mda.Universe):
     """
@@ -36,6 +54,19 @@ class UniverseHandler(mda.Universe):
         mol_idxs_names = [(idx, mol_name) for idx, mol_name in self.mol_idxs_by_name.items()]
         self.normal_order = mol_idxs_names.sort()
 
+        istraj = args[1].casefold().endswith(('trr', 'xtc'))
+        
+        # Required for unwrapping
+        if istraj:
+            self.pbc = np.array([ dim2lattice(*f.dimensions) for f in self.trajectory ])
+            self.coordinates = self.trajectory.coordinate_array.astype('float64')
+        else:
+            self.pbc = dim2lattice(self.dimensions)[None]
+            self.coordinates = self.atoms.positions[None].astype('float64')
+            
+        self.ipbc = 2 * np.pi * np.linalg.inv(self.pbc) 
+        self.reciprocal = (self.coordinates @ self.ipbc)
+        
         # Hidden attribute labels
         self.__n_atoms = None
         self.__n_residues = None
