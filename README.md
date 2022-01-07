@@ -26,10 +26,11 @@ pip install ./
 ## mapping trajectories
 The following is an examplatory command for mapping trajectories.
 ```
-ff_map -f <.trr/.xtc/.gro/.pdb> -m <.mapping> -s <.tpr> -o <.xtc>
+ff_map -f <.trr/.xtc/.gro/.pdb> -m <.mapping> -s <.tpr> -o <.xtc> -mols <molecule names>
 ```
-Mapping files are written per resiude and follow the backwards
-style mapping file format.
+Note that the molecule names need to correspond to the `[moleculetype]` entries in the itp
+files of the molecules that are to be mapped. Mapping files are written per resiude and 
+follow the backwards style mapping file format.
 ```
 [ molecule ]
 <resnameAA> <resnameCG>
