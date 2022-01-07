@@ -45,7 +45,7 @@ def main():
     file_group.add_argument('-f', dest='traj', required=True, type=str,
                             help='trajectory file (XTC/TRR/GRO/PDB ...)')
     file_group.add_argument('-s', dest='tpr', required=True, type=str,
-                            help='GROMACS tpr file (TPR)')
+                            help='tpr file (TPR)')
     file_group.add_argument('-o', dest='outpath', type=str,
                             help='name of the mapped trajectory (XTC/GRO)')
     file_group.add_argument('-mf', dest='map_file', type=str,
@@ -57,7 +57,7 @@ def main():
     mapping_group.add_argument('-pbc', dest='pbc_complete', required=False, type=bool,
                                help='complete pbc with MDAnalysis; this is slow!', default=False)
     mapping_group.add_argument('-mols', dest='mol_names', required=True, type=str, nargs='+',
-                               help='names of molecules to consider when mapping')
+                               help='names of molecules to consider when mapping as in the [moleculetypes] directive')
     args = parser.parse_args()
 
     print("INFO - Loading universe")
