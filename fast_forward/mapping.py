@@ -112,12 +112,12 @@ def forward_map_positions(mapped_atoms, bead_idxs, positions, reciprocal, pbc, m
         atom_idxs = mapped_atoms[count_lv1]
         for fdx in prange(0, n_frames):
             first = atom_idxs[0]
+            divfac = 2 * np.pi * len(atom_idxs)
             new_pos = positions[fdx, first]
             reci0 = reciprocal[fdx, first]
             for atom_idx in atom_idxs[1:]:
                 angle = ((reciprocal[fdx, atom_idx, :] - reci0) + np.pi) % (2 * np.pi) - np.pi
-                vector = angle @ pbc[fdx] / (2 * np.pi)
+                vector = angle @ pbc[fdx] / divfac
                 new_pos = new_pos + vector 
-            new_pos = new_pos / len(atom_idxs)
             new_trajectory[fdx, bead_idx, :] = new_pos
     return new_trajectory
