@@ -54,8 +54,6 @@ def main():
     mapping_group = parser.add_argument_group('Mapping Options')
     mapping_group.add_argument('-mode', dest='mode', required=False, type=str,
                                help='COG or COM mapping', default='COG')
-    mapping_group.add_argument('-pbc', action='store_true', required=False, dest='pbc_complete',
-                               help='complete pbc with MDAnalysis; this is slow!')
     mapping_group.add_argument('-mols', dest='mol_names', required=True, type=str, nargs='+',
                                help='names of molecules to consider when mapping as in the [moleculetypes] directive')
     args = parser.parse_args()

@@ -73,12 +73,6 @@ class UniverseHandler(mda.Universe):
         self.__pbc_completed = False
         self.__resids = None
 
-    def pbc_complete(self):
-        if not self.__pbc_completed:
-            self.trajectory.add_transformations(transformations.unwrap(self.atoms))
-            self.__pbc_completed = True
-        return self.__pbc_completed
-
     @property
     def n_atoms(self):
         if self.__n_atoms is None:
