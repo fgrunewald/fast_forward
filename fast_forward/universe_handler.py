@@ -61,7 +61,7 @@ class UniverseHandler(mda.Universe):
             self.pbc = np.array([ dim2lattice(*f.dimensions) for f in self.trajectory ])
             self.coordinates = self.trajectory.coordinate_array.astype('float64')
         else:
-            self.pbc = dim2lattice(self.dimensions)[None]
+            self.pbc = dim2lattice(*self.dimensions)[None]
             self.coordinates = self.atoms.positions[None].astype('float64')
             
         self.ipbc = 2 * np.pi * np.linalg.inv(self.pbc) 
