@@ -17,9 +17,7 @@ from numba import njit, prange, cuda
 import MDAnalysis as mda
 
 def _selector(atomgroup, indices, names):
-    #idx_string = " ".join(indices)
     names_string = " ".join(names)
-   # atoms = atomgroup.select_atoms("index " + idx_string + " and name " + names_string)
     atoms = atomgroup.select_atoms("name " + names_string)
     return atoms
 

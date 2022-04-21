@@ -13,8 +13,10 @@
 # limitations under the License.
 from collections import defaultdict
 import numpy as np
+import networkx as nx
 import MDAnalysis as mda
 from MDAnalysis import transformations
+from fast_forward.hydrogen import BUILD_HYDRO, find_helper_atoms
 
 
 def dim2lattice(x, y, z, alpha=90, beta=90, gamma=90):
@@ -73,6 +75,27 @@ class UniverseHandler(mda.Universe):
         self.__pbc_completed = False
         self.__resids = None
 
+    def shift_united_atom_carbons(self, association_dict):
+        """
+        Given an atomgroup shift it's coordiantes
+        to where the center of geomtry would be if
+        hydrogens were included.
+        """
+        # much faster to make a bonded graph even of the entire system
+        bonded_graph = nx.Graph()
+        bonded_graph.add_edges_from(list(self.atoms.get_connections("bonds").indices))
+        # select the atoms to be treated
+        select_string = "type " + " ".join(association_dict.keys())
+        atoms_to_treat = self.select_atoms(select_string)
+        for atom in atoms_to_treat:
+            carbon_type = association_dict[atom.type]
+            helper_atoms = find_helper_atoms(self, atom, carbon_type, bonded_graph)
+            for ts in self.trajectory:
+                hydrogen_coords = BUILD_HYDRO[carbon_type](**helper_atoms)
+                new_pos = atom.position
+                for hydro_coord in hydrogen_coords:
+                    new_pos += hydro_coord
+                atom.position = new_pos / (len(hydrogen_coords) + 1)
     @property
     def n_atoms(self):
         if self.__n_atoms is None:

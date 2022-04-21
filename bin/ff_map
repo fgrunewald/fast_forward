@@ -56,6 +56,9 @@ def main():
                                help='COG or COM mapping', default='COG')
     mapping_group.add_argument('-mols', dest='mol_names', required=True, type=str, nargs='+',
                                help='names of molecules to consider when mapping as in the [moleculetypes] directive')
+    mapping_group.add_argument('-add_H', dest='h_association', nargs='+', type=lambda s: s.split(':'),
+                                default=[],
+                               help='atom-types corresponding to CH3, CH2, CH1 for aliphatic groups and CH2d for double bonds.')
     args = parser.parse_args()
 
     print("INFO - Loading universe")
@@ -64,6 +67,10 @@ def main():
                                     args.tpr,
                                     args.traj,
                                     in_memory=True)
+
+    if args.h_association:
+        print("INFO - Adding Hydrogen to united-atoms")
+        init_universe.shift_united_atom_carbons(dict(args.h_association))
 
     print("INFO - Loading mapping files")
     with open(args.map_file, "r") as _file:
