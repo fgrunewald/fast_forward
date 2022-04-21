@@ -179,7 +179,7 @@ def match_attributes(atom, attributes):
             return False
     return True
 
-def find_any_bonded_neighbor(atomgroup, attributes):
+def find_any_bonded_neighbor(atom, bonded_graph, black_list):
     """
     Find any bonded neighbor of atomgroup.
 
@@ -196,13 +196,11 @@ def find_any_bonded_neighbor(atomgroup, attributes):
     atom
         atomgroup of bonded neighbor
     """
-    bond_list = atomgroup.get_connections("bonds")
-    for atom1, atom2 in bond_list:
-        if atom1 != atomgroup and match_attributes(atom1, attributes):
-            return atom1
-
-        if match_attributes(atom2, attributes):
-            return atom2
+    bond_list = bonded_graph.neighbors(atom)
+    for atom in bond_list:
+        if atom not in black_list:
+            return atom
+    return None
 
 REF_ATOMS =  {"CH3": [0, 1],
               "CH2": [0, 0],
@@ -210,20 +208,23 @@ REF_ATOMS =  {"CH3": [0, 1],
               "CH2d": [0, 0],
              }
 
-BUILD_HYDRO = {"CH3": get_CH2,
+BUILD_HYDRO = {"CH3": get_CH3,
                "CH2": get_CH2,
                "CH": get_CH,
                "CH2d": get_CH_double_bond,
               }
 
-def find_helper_atoms(atom, carbon_type):
+def find_helper_atoms(universe, atom, carbon_type, bonded_graph):
     """
     Given a carbon-type find all helper atoms
     needed in the reconstruction of the coordinates.
     """
-    construction_atoms = [atom]
-    for help_idx in REF_ATOMS[carbon_type]:
+    construction_atoms = [atom.index]
+    helper_positions = {"atom": atom.position}
+    help_keys = ["helper1", "helper2", "helper3"]
+    for help_key, help_idx in zip(help_keys, REF_ATOMS[carbon_type]):
         anchor = construction_atoms[help_idx]
-        neighbor = find_any_bonded_neighbor(anchor, {})
+        neighbor = find_any_bonded_neighbor(anchor, bonded_graph, construction_atoms)
         construction_atoms.append(neighbor)
-    return dict(zip(["atom", "helper1", "helper2", "helper3"], construction_atoms))
+        helper_positions[help_key] = universe.atoms[neighbor].position
+    return helper_positions

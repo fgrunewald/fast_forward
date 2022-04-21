@@ -73,9 +73,9 @@ def main():
         print("INFO - PBC completeing trajectory")
         init_universe.pbc_complete()
 
-    if args.h_aossciation:
+    if args.h_association:
         print("INFO - Adding Hydrogen to united-atoms")
-        init_universe.shift_united_atom_carbons(args.h_association)
+        init_universe.shift_united_atom_carbons(dict(args.h_association))
 
     print("INFO - Loading mapping files")
     with open(args.map_file, "r") as _file:
