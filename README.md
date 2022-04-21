@@ -11,6 +11,7 @@ that we use the numba library for paralell acceleration.
 - residue based mapping description
 - residues can be renamed
 - partial residues can be mapped
+- hydrogen of united-atom models can be reconstructed
 - interactions are computed from itp files
 - interactions can be computed for multiple molecules
 - interactions are grouped by comments
@@ -54,6 +55,23 @@ BB
     9     C    BB
    10     O    BB
 ```
+## mapping trajectories + hydrogen reconstruction
+The Martini3 model is based on center of geometry mappings, for which
+it is important to include the hydrogen atoms. However, certain atomistic
+united-atom models have no explicit hydrogen atoms. In oder to still obtain
+good bonded interactions fast_forward can reconstruct the hydrogen atoms
+using geometric rules. The only input required is a list of atom-types and
+weather they correspond to CH, CH2, CH3 or double bonded CH group (CHd).
+
+The algorithm is directly taken from the [buildH](https://github.com/patrickfuchs/buildH) package.
+If you use this feauture please cite https://joss.theoj.org/papers/10.21105/joss.03521. 
+
+An example for POPC can be found in the example folder, where a CHARMM36m
+POPC was stripped of all hydrogen and mapped with reconstrucion.
+
+Note the reconstruction only affects the mapping, atomistic coordinates with
+hydrogen are not written out.
+
 ## computing interactions
 Interactions can be computed from one or multiple itp files. The molecule name
 is simply matched to those found in the tpr and trajectory file and then the 
