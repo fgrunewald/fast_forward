@@ -75,7 +75,7 @@ def get_CH(atom, helper1, helper2, helper3):
     # CH bond is on the opposite direction.
     unit_vect_H = u_vect(-v2)
     coor_H = LENGTH_CH_BOND * unit_vect_H + atom
-    return coor_H
+    return [coor_H]
 
 
 def get_CH2(atom, helper1, helper2):
@@ -117,7 +117,7 @@ def get_CH2(atom, helper1, helper2):
     unit_vect_H2 = apply_rotation(vec_to_rotate, rotation_axis,
                                       TETRAHEDRAL_ANGLE/2)
     hcoor_H2 = LENGTH_CH_BOND * unit_vect_H2 + atom
-    return (hcoor_H1, hcoor_H2)
+    return [hcoor_H1, hcoor_H2]
 
 
 def get_CH3(atom, helper1, helper2):
@@ -166,7 +166,7 @@ def get_CH3(atom, helper1, helper2):
     # Last we rotate atom->He bond around atom->helper1 bond by -2pi/3.
     unit_vect_Hs = apply_rotation(v5, rotation_axis, theta)
     coor_Hs = LENGTH_CH_BOND * unit_vect_Hs + atom
-    return coor_He, coor_Hr, coor_Hs
+    return [coor_He, coor_Hr, coor_Hs]
 
 
 def get_CH_double_bond(atom, helper1, helper2):
@@ -201,7 +201,7 @@ def get_CH_double_bond(atom, helper1, helper2):
     # Reconstruct H by rotating v3 by theta.
     unit_vect_H = apply_rotation(v3, rotation_axis, theta)
     coor_H = LENGTH_CH_BOND * unit_vect_H + atom
-    return coor_H
+    return [coor_H]
 
 def match_attributes(atom, attributes):
     for attr, value in attributes.items():
@@ -236,14 +236,14 @@ def find_any_bonded_neighbor(atom, bonded_graph, black_list):
 
 REF_ATOMS =  {"CH3": [0, 1],
               "CH2": [0, 0],
-              "CH": [0, 0, 0],
-              "CH2d": [0, 0],
+              "CH1": [0, 0, 0],
+              "CHd": [0, 0],
              }
 
 BUILD_HYDRO = {"CH3": get_CH3,
                "CH2": get_CH2,
-               "CH": get_CH,
-               "CH2d": get_CH_double_bond,
+               "CH1": get_CH,
+               "CHd": get_CH_double_bond,
               }
 
 def find_helper_atoms(universe, atom, carbon_type, bonded_graph):
