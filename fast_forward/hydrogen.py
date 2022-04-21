@@ -4,6 +4,7 @@ Most of this comes from  buildh.readthedocs.io and
 is proted to be compatible with the vermouth way of
 handling molecules.
 """
+import fnmatch
 import numpy as np
 from fast_forward.linalg_functions import u_vect, apply_rotation, cross_product, vector_angle
 
@@ -169,3 +170,60 @@ def get_CH_double_bond(atom, helper1, helper2):
     unit_vect_H = apply_rotation(v3, rotation_axis, theta)
     coor_H = LENGTH_CH_BOND * unit_vect_H + atom
     return coor_H
+
+def match_attributes(atom, attributes):
+    for attr, value in attributes.items():
+        try:
+            assert fnmatch.fnmatch(getattr(atom, attr), value)
+        except AttributeError:
+            return False
+    return True
+
+def find_any_bonded_neighbor(atomgroup, attributes):
+    """
+    Find any bonded neighbor of atomgroup.
+
+    Parameters
+    ----------
+    atomgroup: :class:`MDAnalysis.atomgroup`
+        atom-group of single atom
+    attributes: dict
+        a dict of attributes the atom has to full-fill
+        only string attributes are allowed
+
+    Returns
+    ------
+    atom
+        atomgroup of bonded neighbor
+    """
+    bond_list = atomgroup.get_connections("bonds")
+    for atom1, atom2 in bond_list:
+        if atom1 != atomgroup and match_attributes(atom1, attributes):
+            return atom1
+
+        if match_attributes(atom2, attributes):
+            return atom2
+
+REF_ATOMS =  {"CH3": [0, 1],
+              "CH2": [0, 0],
+              "CH": [0, 0, 0],
+              "CH2d": [0, 0],
+             }
+
+BUILD_HYDRO = {"CH3": get_CH2,
+               "CH2": get_CH2,
+               "CH": get_CH,
+               "CH2d": get_CH_double_bond,
+              }
+
+def find_helper_atoms(atom, carbon_type):
+    """
+    Given a carbon-type find all helper atoms
+    needed in the reconstruction of the coordinates.
+    """
+    construction_atoms = [atom]
+    for help_idx in REF_ATOMS[carbon_type]:
+        anchor = construction_atoms[help_idx]
+        neighbor = find_any_bonded_neighbor(anchor, {})
+        construction_atoms.append(neighbor)
+    return dict(zip(["atom", "helper1", "helper2", "helper3"], construction_atoms))

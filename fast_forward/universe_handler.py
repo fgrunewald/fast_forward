@@ -14,6 +14,7 @@
 from collections import defaultdict
 import MDAnalysis as mda
 from MDAnalysis import transformations
+from fast_forward.hydrogen import BUILD_HYDRO, find_helper_atoms
 
 class UniverseHandler(mda.Universe):
     """
@@ -47,6 +48,25 @@ class UniverseHandler(mda.Universe):
             self.trajectory.add_transformations(transformations.unwrap(self.atoms))
             self.__pbc_completed = True
         return self.__pbc_completed
+
+    def shift_united_atom_carbons(self, association_dict):
+        """
+        Given an atomgroup shift it's coordiantes
+        to where the center of geomtry would be if
+        hydrogens were included.
+        """
+        select_string = "name" + " ".join(association_dict.keys())
+        atoms_to_treat = self.select_atoms(select_string)
+        for atom in atoms_to_treat:
+            carbon_type = association_dict[atom.type]
+            helper_atoms = find_helper_atoms(atom, carbon_type)
+            for ts in self.trajectory:
+                hydrogen_coords = BUILD_HYDRO[carbon_type](**helper_atoms)
+                new_pos = atom.position
+                for hydro_coord in hydrogen_coords:
+                    new_pos += hydro_coord
+                atom.position = new_pos
+        return new_pos
 
     @property
     def n_atoms(self):

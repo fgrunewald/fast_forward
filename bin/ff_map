@@ -58,14 +58,9 @@ def main():
                                help='complete pbc with MDAnalysis; this is slow!')
     mapping_group.add_argument('-mols', dest='mol_names', required=True, type=str, nargs='+',
                                help='names of molecules to consider when mapping as in the [moleculetypes] directive')
-    mapping_group.add_argument('-addh', action='store_trye',
-                               help='add hydrogen atoms to UA force-fields.')
-    mapping_group.add_argument('-alipH', dest='alipH', nargs='+', type=lambda s: s.split(':'),
+    mapping_group.add_argument('-add_H', dest='h_association', nargs='+', type=lambda s: s.split(':'),
                                 default=[],
-                               help='atom-types corresponding to aliphatic versions of CH3, CH2, CH1')
-    mapping_group.add_argument('-satH', dest='satH', nargs='+', type=lambda s: s.split(':'),
-                                default=[],
-                               help='atom-types corresponding to saturated versions of CH3, CH2, CH1')
+                               help='atom-types corresponding to CH3, CH2, CH1 for aliphatic groups and CH2d for double bonds.')
     args = parser.parse_args()
 
     print("INFO - Loading universe")
@@ -78,9 +73,9 @@ def main():
         print("INFO - PBC completeing trajectory")
         init_universe.pbc_complete()
 
-    if args.addh:
-        print("INFO - Adding hydrogens to UA atoms.")
-        init_universe.add_hydrogen(aliphatic_hydro=args.alipH, saturated_hydro=args.satH)
+    if args.h_aossciation:
+        print("INFO - Adding Hydrogen to united-atoms")
+        init_universe.shift_united_atom_carbons(args.h_association)
 
     print("INFO - Loading mapping files")
     with open(args.map_file, "r") as _file:
