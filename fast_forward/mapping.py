@@ -100,22 +100,17 @@ def forward_map_indices(universe, mappings):
             total_beads += 1
     return mapped_atoms, bead_idxs
 
-
 @njit(parallel=True)
-def forward_map_positions(mapped_atoms, bead_idxs, positions, reciprocal, pbc, mode):
-    n_frames = positions.shape[0]
+def forward_map_positions(mapped_atoms, bead_idxs, positions, n_frames, mode):
     new_trajectory = np.zeros((n_frames, len(mapped_atoms), 3))
     for count_lv1 in prange(len(mapped_atoms)):
         bead_idx = bead_idxs[count_lv1]
         atom_idxs = mapped_atoms[count_lv1]
         for fdx in prange(0, n_frames):
-            first = atom_idxs[0]
-            divfac = 2 * np.pi * len(atom_idxs)
-            new_pos = positions[fdx, first]
-            reci0 = reciprocal[fdx, first]
-            for atom_idx in atom_idxs[1:]:
-                angle = ((reciprocal[fdx, atom_idx, :] - reci0) + np.pi) % (2 * np.pi) - np.pi
-                vector = angle @ pbc[fdx] / divfac
-                new_pos = new_pos + vector 
+            new_pos = np.array([0.0, 0.0, 0.0], dtype=np.float32)
+            for atom_idx in atom_idxs:
+                vector = positions[fdx, atom_idx, :]
+                new_pos = new_pos + vector
+            new_pos = new_pos / len(atom_idxs)
             new_trajectory[fdx, bead_idx, :] = new_pos
     return new_trajectory

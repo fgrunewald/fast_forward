@@ -54,6 +54,8 @@ def main():
     mapping_group = parser.add_argument_group('Mapping Options')
     mapping_group.add_argument('-mode', dest='mode', required=False, type=str,
                                help='COG or COM mapping', default='COG')
+    mapping_group.add_argument('-pbc', action='store_true', required=False, dest='pbc_complete',
+                               help='complete pbc with MDAnalysis; this is slow!')
     mapping_group.add_argument('-mols', dest='mol_names', required=True, type=str, nargs='+',
                                help='names of molecules to consider when mapping as in the [moleculetypes] directive')
     mapping_group.add_argument('-add_H', dest='h_association', nargs='+', type=lambda s: s.split(':'),
@@ -67,6 +69,9 @@ def main():
                                     args.tpr,
                                     args.traj,
                                     in_memory=True)
+    if args.pbc_complete:
+        print("INFO - PBC completeing trajectory")
+        init_universe.pbc_complete()
 
     if args.h_association:
         print("INFO - Adding Hydrogen to united-atoms")
@@ -87,12 +92,21 @@ def main():
     print("INFO - Mapping universe - positions")
     mapped_atoms = numba.typed.List(mapped_atoms)
     bead_idxs = numba.typed.List(bead_idxs)
+    # extract the position array from universe
+    # if it's not a trajectory we have to emulate
+    # a single frame
+    path = pathlib.Path(args.traj)
+    file_extension = path.suffix.casefold()[1:]
+    if file_extension in ["xtc", "trr"]:
+        positions = init_universe.trajectory.coordinate_array
+    else:
+        positions = init_universe.atoms.positions
+        positions = positions.reshape(1, -1, 3)
 
     mapped_trajectory = forward_map_positions(mapped_atoms,
                                               bead_idxs,
-                                              init_universe.coordinates,
-                                              init_universe.reciprocal,
-                                              init_universe.pbc,
+                                              positions,
+                                              n_frames,
                                               args.mode)
 
     print("INFO - Mapping universe - building pos-array")
