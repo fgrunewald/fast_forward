@@ -54,7 +54,7 @@ def _u_vect(vect):
     return unit_vect
 
 # this is the numba implementation
-u_vect = jit(_u_vect)
+u_vect = njit(_u_vect)
 
 def _vector_angle(v1, v2):
     """
@@ -69,13 +69,18 @@ def _vector_angle(v1, v2):
     ---------
     float
     """
-    angle = np.arccos(np.dot(u_vect(v1), u_vect(v2)))
+    dot = np.dot(u_vect(v1), u_vect(v2))
+    if dot > 1.0 and dot < 1.001:
+        dot = 1.0
+    if dot < -1.0 and dot > -1.001:
+        dot = -1.0
+    angle = np.arccos(dot)
     return angle
 
 # this is the numba implementation
-vector_angle = jit(_vector_angle)
+vector_angle = njit(_vector_angle)
 
-def vector_angle_degrees(v1, v2):
+def _vector_angle_degrees(v1, v2):
     """
     Compute the angle between two vectors
     in degrees and between 0 180 degrees.
@@ -89,8 +94,11 @@ def vector_angle_degrees(v1, v2):
     ---------
     float
     """
-    angle = np.degrees(_vector_angle(v1, v2))
+    angle = 180.0/np.pi * vector_angle(v1, v2)
     return angle
+
+# this is the numba implementation
+vector_angle_degrees = njit(_vector_angle_degrees)
 
 @njit
 def vec2quaternion(vec, theta):
@@ -197,3 +205,18 @@ def cross_product(A, B):
     y = (A[0]*B[2]) - (A[2]*B[0])
     z = (A[0]*B[1]) - (A[1]*B[0])
     return np.array((x, -y, z))
+
+
+def _dih(r1, r2, r3):
+    cross1 = cross_product(r1, r2)
+    cross2 = cross_product(r2, r3)
+    n1 = u_vect(cross1)
+    n2 = u_vect(cross2)
+    dih = vector_angle_degrees(n1, n2)
+    # GROMACS specific definition of the sign of the
+    # dihedral.
+    if np.dot(r1, cross2) < 0:
+        dih = - dih
+    return dih
+
+dihedral_angle = jit(_dih)
