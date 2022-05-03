@@ -16,6 +16,7 @@ import networkx as nx
 import MDAnalysis as mda
 from MDAnalysis import transformations
 from fast_forward.hydrogen import BUILD_HYDRO, find_helper_atoms
+from tqdm import tqdm
 
 class UniverseHandler(mda.Universe):
     """
@@ -62,10 +63,10 @@ class UniverseHandler(mda.Universe):
         # select the atoms to be treated
         select_string = "type " + " ".join(association_dict.keys())
         atoms_to_treat = self.select_atoms(select_string)
-        for atom in atoms_to_treat:
+        for atom in tqdm(atoms_to_treat):
             carbon_type = association_dict[atom.type]
-            helper_atoms = find_helper_atoms(self, atom, carbon_type, bonded_graph)
             for ts in self.trajectory:
+                helper_atoms = find_helper_atoms(self, atom, carbon_type, bonded_graph)
                 hydrogen_coords = BUILD_HYDRO[carbon_type](**helper_atoms)
                 new_pos = atom.position
                 for hydro_coord in hydrogen_coords:
