@@ -72,6 +72,8 @@ class UniverseHandler(mda.Universe):
                 for hydro_coord in hydrogen_coords:
                     new_pos += hydro_coord
                 atom.position = new_pos / (len(hydrogen_coords) + 1)
+        return atoms_to_treat.indices
+
     @property
     def n_atoms(self):
         if self.__n_atoms is None:
