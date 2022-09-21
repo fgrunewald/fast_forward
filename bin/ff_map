@@ -20,6 +20,7 @@ different subcommands. This is the main executable.
 """
 import argparse
 import pathlib
+import numpy as np
 import numba
 import MDAnalysis as mda
 import fast_forward
@@ -75,7 +76,9 @@ def main():
 
     if args.h_association:
         print("INFO - Adding Hydrogen to united-atoms")
-        init_universe.shift_united_atom_carbons(dict(args.h_association))
+        treated_atoms = init_universe.shift_united_atom_carbons(dict(args.h_association))
+    else:
+        treated_atoms = np.array([])
 
     print("INFO - Loading mapping files")
     with open(args.map_file, "r") as _file:
@@ -107,7 +110,8 @@ def main():
                                               bead_idxs,
                                               positions,
                                               n_frames,
-                                              args.mode)
+                                              args.mode,
+                                              treated_atoms)
 
     print("INFO - Mapping universe - building pos-array")
     cg_universe = create_new_universe(init_universe, mapped_trajectory, mappings)
