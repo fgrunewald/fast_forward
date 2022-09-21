@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/327071500.svg)](https://zenodo.org/badge/latestdoi/327071500)
+
 # Fast-Forward
 
 A simple and fast tool for forward mapping trajectories and
