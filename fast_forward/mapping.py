@@ -101,16 +101,32 @@ def forward_map_indices(universe, mappings):
     return mapped_atoms, bead_idxs
 
 @njit(parallel=True)
-def forward_map_positions(mapped_atoms, bead_idxs, positions, n_frames, mode):
+def forward_map_positions(mapped_atoms, bead_idxs, positions, n_frames, mode, treated_atoms):
     new_trajectory = np.zeros((n_frames, len(mapped_atoms), 3))
     for count_lv1 in prange(len(mapped_atoms)):
         bead_idx = bead_idxs[count_lv1]
         atom_idxs = mapped_atoms[count_lv1]
         for fdx in prange(0, n_frames):
-            new_pos = np.array([0.0, 0.0, 0.0], dtype=np.float32)
+            pre_pos = np.array([0.0, 0.0, 0.0], dtype=np.float32)
+            treat_pos = np.array([0.0, 0.0, 0.0], dtype=np.float32)
+            # we need to first average the non-treated atoms
+            # and then take the average of the these atoms with
+            # the treated atoms
+            pre_count = 0
+            treat_count = 0
             for atom_idx in atom_idxs:
                 vector = positions[fdx, atom_idx, :]
-                new_pos = new_pos + vector
-            new_pos = new_pos / len(atom_idxs)
+                if atom_idx not in treated_atoms:
+                    pre_pos = pre_pos + vector
+                    pre_count += 1
+                else:
+                    treat_pos = treat_pos + vector
+                    treat_count += 1
+            if pre_count != 0:
+                pre_pos = pre_pos / pre_count
+                new_pos = (pre_pos + treat_pos) / (treat_count + 1)
+            else:
+                new_pos = treat_pos / treat_count
             new_trajectory[fdx, bead_idx, :] = new_pos
+
     return new_trajectory
