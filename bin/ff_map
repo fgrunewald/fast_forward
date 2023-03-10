@@ -81,8 +81,24 @@ def main():
         treated_atoms = np.array([])
 
     print("INFO - Loading mapping files")
-    with open(args.map_file, "r") as _file:
-        lines = _file.readlines()
+    #determine if we have a single .mapping file or a directory of .map files
+    map_path = pathlib.Path(args.map_file)
+    if map_path.is_file() == True:
+        with open(args.map_file, "r") as _file:
+            lines = _file.readlines()
+    elif map_path.is_dir() == True:
+        l = []
+        for i in map_path.glob('*.map'):
+            with open(i, "r") as _file:
+                l.append(_file.readlines())
+        if len(l) > 0:
+            lines = [item for sublist in l for item in sublist]
+        else:
+            print("Couldn't find any .map files in the directory given."
+                  "Please check the -mf argument!")
+    else:
+        print("\nCannot determine if you have given me a single .mapping file\n"
+              "or a directory of .map files. Please check!\n")
 
     mappings = read_mapping(lines)[0]
 
