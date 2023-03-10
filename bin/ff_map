@@ -91,8 +91,11 @@ def main():
         for i in map_path.glob('*.map'):
             with open(i, "r") as _file:
                 l.append(_file.readlines())
+                l.append('\n')
         if len(l) > 0:
             lines = [item for sublist in l for item in sublist]
+            with open("full_output.mapping", "w") as opfile:
+                opfile.writelines(lines)
         else:
             print("Couldn't find any .map files in the directory given."
                   "Please check the -mf argument!")
