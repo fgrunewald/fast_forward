@@ -132,8 +132,6 @@ class MapDirector(SectionLineParser):
         for bead in beads:
             if bead[0] != "!":
                 self.current_mapping.add_atom(idx=idx, atom=atom, bead=bead)
-            else:
-                pass
     def finalize(self, lineno=0):
         """
         Called at the end of the file
