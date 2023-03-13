@@ -29,10 +29,10 @@ pip install ./
 ## mapping trajectories
 The following is an examplatory command for mapping trajectories.
 ```
-ff_map -f <.trr/.xtc/.gro/.pdb> -m <.mapping> -s <.tpr> -o <.xtc> -mols <molecule names>
+ff_map -f <.trr/.xtc/.gro/.pdb> -m <.mapping/directory of .map> -s <.tpr> -o <.xtc> -mols <molecule names>
 ```
 Note that the molecule names need to correspond to the `[moleculetype]` entries in the itp
-files of the molecules that are to be mapped. Mapping files are written per resiude and 
+files of the molecules that are to be mapped. Entries in mapping files are written per resiude and 
 follow the backwards style mapping file format.
 ```
 [ molecule ]
@@ -42,20 +42,63 @@ follow the backwards style mapping file format.
 [ atoms ]
      1     <atomname AA> <bead CG> <bead CG>
 ```
-For example, the Martini3 mapping file for Alanine not including the
+For example, the Martini3 .mapping entry for Alanine not including the
 hydrogens would look as follows and maps from the CHARMM force-field:
 ```
 [ molecule ]
 ALA ALA
 [ martini ]
-BB
+BB SC1
 [ atoms ]
     1     N    BB
     2    HN    BB
     3    CA    BB
-    5    CB    BB
+    5    CB    SC1
     9     C    BB
    10     O    BB
+```
+
+Alternatively, a directory of .map files can be passed to the  `-m` argument, such as those used 
+in [Vermouth](https://github.com/marrink-lab/vermouth-martinize)-style mappings. In this format, we
+use a separate map file for each residue. For example, the CHARMM map file for Alanine is:
+
+```
+[ molecule ]
+ALA
+
+[from]
+charmm
+
+[to]
+martini3001
+
+[ martini ]
+BB SC1
+
+[ mapping ]
+charmm27 charmm36
+
+[ atoms ]
+    1     N    BB
+    2    HN    BB
+    3    CA    BB
+    4    HA    !BB
+    5    CB    SC1
+    6   HB1    !SC1
+    7   HB2    !SC1
+    8   HB3    !SC1
+    9     C    BB
+   10     O    BB
+
+[ chiral ]
+  CB     CA    N    C
+  HB1    CA    N    C
+  HB2    CA    N    C
+  HB3    CA    N    C
+
+[ chiral ]
+  HA     CA    N    CB    C ; L-Ala
+; HA     CA    N    C    CB ; D-Ala
 ```
 ## mapping trajectories + hydrogen reconstruction
 The Martini3 model is based on center of geometry mappings, for which
