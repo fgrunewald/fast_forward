@@ -16,7 +16,7 @@ polyply.egg-info
 tests/test_data/gen_itp/output/*.itp
 
 **/htmlcov
-
+.idea
 
 doc/build
 doc/source/api
