@@ -96,8 +96,7 @@ class MapDirector(SectionLineParser):
         if len(tokens) == 2:
             from_resname, to_resname = tokens
         else:
-            from_resname = to_resname = tokens
-
+            from_resname = to_resname = tokens[0]
         self.current_mapping = Mapping(from_resname=from_resname,
                                        to_resname=to_resname)
         self.current_from = from_resname
@@ -116,6 +115,8 @@ class MapDirector(SectionLineParser):
     @SectionLineParser.section_parser('from')
     @SectionLineParser.section_parser('mapping')
     @SectionLineParser.section_parser('chiral')
+    @SectionLineParser.section_parser('trans')
+    @SectionLineParser.section_parser('out')
     def _skip_line(self, line, lineno=0):
         pass
 
@@ -129,8 +130,8 @@ class MapDirector(SectionLineParser):
         atom = tokens[1]
         beads = tokens[2:]
         for bead in beads:
-            self.current_mapping.add_atom(idx=idx, atom=atom, bead=bead)
-
+            if bead[0] != "!":
+                self.current_mapping.add_atom(idx=idx, atom=atom, bead=bead)
     def finalize(self, lineno=0):
         """
         Called at the end of the file

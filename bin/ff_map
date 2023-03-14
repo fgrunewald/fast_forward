@@ -49,8 +49,8 @@ def main():
                             help='tpr file (TPR)')
     file_group.add_argument('-o', dest='outpath', type=str,
                             help='name of the mapped trajectory (XTC/GRO)')
-    file_group.add_argument('-mf', dest='map_file', type=str,
-                            help='mapping_file')
+    file_group.add_argument('-m', dest='map_file', type=str,
+                            help='.mapping file or path to directory of .map files')
 
     mapping_group = parser.add_argument_group('Mapping Options')
     mapping_group.add_argument('-mode', dest='mode', required=False, type=str,
@@ -81,8 +81,27 @@ def main():
         treated_atoms = np.array([])
 
     print("INFO - Loading mapping files")
-    with open(args.map_file, "r") as _file:
-        lines = _file.readlines()
+    #determine if we have a single .mapping file or a directory of .map files
+    map_path = pathlib.Path(args.map_file)
+    if map_path.is_file() == True:
+        with open(args.map_file, "r") as _file:
+            lines = _file.readlines()
+    elif map_path.is_dir() == True:
+        l = []
+        for i in map_path.glob('*.map'):
+            with open(i, "r") as _file:
+                l.append(_file.readlines())
+                l.append('\n')
+        if len(l) > 0:
+            lines = [item for sublist in l for item in sublist]
+        else:
+            msg = "Couldn't find any .map files in the directory given."
+                  "Please check the -m argument!"
+            raise IOError(msg)
+    else:
+        msg = "\nCannot determine if you have given me a single .mapping file\n"
+              "or a directory of .map files. Please check!\n"
+        raise IOError(msg)
 
     mappings = read_mapping(lines)[0]
 
