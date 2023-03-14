@@ -71,7 +71,7 @@ def main():
                                     args.traj,
                                     in_memory=True)
     if args.pbc_complete:
-        print("INFO - PBC completeing trajectory")
+        print("INFO - PBC completing trajectory")
         init_universe.pbc_complete()
 
     if args.h_association:
@@ -91,16 +91,15 @@ def main():
         for i in map_path.glob('*.map'):
             with open(i, "r") as _file:
                 l.append(_file.readlines())
-                l.append('\n')
         if len(l) > 0:
             lines = [item for sublist in l for item in sublist]
         else:
-            msg = "Couldn't find any .map files in the directory given."
-                  "Please check the -m argument!"
+            msg = ("Couldn't find any .map files in the directory given."
+                  "Please check the -m argument!")
             raise IOError(msg)
     else:
-        msg = "\nCannot determine if you have given me a single .mapping file\n"
-              "or a directory of .map files. Please check!\n"
+        msg = ("\nCannot determine if you have given me a single .mapping file\n"
+              "or a directory of .map files. Please check!\n")
         raise IOError(msg)
 
     mappings = read_mapping(lines)[0]
