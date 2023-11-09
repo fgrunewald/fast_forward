@@ -22,7 +22,7 @@ that we use the numba library for paralell acceleration.
 ```
 git clone https://github.com/fgrunewald/fast_forward.git
 
-cd fast-forward
+cd fast_forward
 
 pip install ./
 ```
