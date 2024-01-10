@@ -95,6 +95,11 @@ def forward_map_indices(universe, mappings):
             idxs = mapping.bead_to_idx[bead]
             names = mapping.bead_to_atom[bead]
             atoms = _selector(residue.atoms, idxs, names)
+            if len(atoms) == 0:
+                msg = (f"Mapping of residue {resname} is empty. \n"
+                        "That means the atomnames in the map file \n"
+                        "do not match the one in the topology.")
+                raise ValueError(msg)
             mapped_atoms.append(atoms.indices)
             bead_idxs.append(total_beads)
             total_beads += 1
