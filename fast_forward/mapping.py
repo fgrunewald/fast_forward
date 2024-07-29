@@ -104,8 +104,8 @@ def forward_map_indices(universe, mappings):
 def forward_map_positions(mapped_atoms, bead_idxs, positions, n_frames, mode, treated_atoms):
     new_trajectory = np.zeros((n_frames, len(mapped_atoms), 3))
     for count_lv1 in prange(len(mapped_atoms)):
-        bead_idx = bead_idxs[count_lv1]
-        atom_idxs = mapped_atoms[count_lv1]
+        bead_idx = bead_idxs[np.int64(count_lv1)]
+        atom_idxs = mapped_atoms[np.int64(count_lv1)]
         for fdx in prange(0, n_frames):
             pre_pos = np.array([0.0, 0.0, 0.0], dtype=np.float32)
             treat_pos = np.array([0.0, 0.0, 0.0], dtype=np.float32)
