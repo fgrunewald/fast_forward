@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import numpy as np
 from collections import OrderedDict
 from vermouth.parser_utils import SectionLineParser
 
@@ -21,10 +22,12 @@ class Mapping():
         self.to_resname = to_resname
         self.bead_to_idx = OrderedDict()
         self.bead_to_atom = OrderedDict()
+        self.atom_weights = OrderedDict()
 
-    def add_atom(self, bead, idx, atom=None):
+    def add_atom(self, bead, idx, atom=None, weight=None):
         self.bead_to_atom[bead].append(atom)
         self.bead_to_idx[bead].append(idx)
+        self.atom_weights[bead].append(np.float32(weight))
 
     @property
     def beads(self):
@@ -110,6 +113,7 @@ class MapDirector(SectionLineParser):
         for bead in tokens:
             self.current_mapping.bead_to_idx[bead] = []
             self.current_mapping.bead_to_atom[bead] = []
+            self.current_mapping.atom_weights[bead] = []
 
     @SectionLineParser.section_parser('to')
     @SectionLineParser.section_parser('from')
@@ -129,9 +133,13 @@ class MapDirector(SectionLineParser):
         idx = tokens[0]
         atom = tokens[1]
         beads = tokens[2:]
-        for bead in beads:
-            if bead[0] != "!":
-                self.current_mapping.add_atom(idx=idx, atom=atom, bead=bead)
+        for bead in range(len(beads)):
+            if beads[bead][0] != "!" and beads[bead][0].isalpha():
+                if not beads[bead-1][0].isalpha():
+                    self.current_mapping.add_atom(idx=idx, atom=atom, bead=beads[bead], weight=beads[bead-1])
+                else:
+                    self.current_mapping.add_atom(idx=idx, atom=atom, bead=beads[bead], weight='+1.0')
+    
     def finalize(self, lineno=0):
         """
         Called at the end of the file

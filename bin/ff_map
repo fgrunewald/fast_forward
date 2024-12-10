@@ -106,13 +106,13 @@ def main():
 
     print("INFO - Mapping universe - indices")
     # first mapp the atom indices
-    mapped_atoms, bead_idxs = forward_map_indices(init_universe,
-                                                  mappings)
+    mapped_atoms, bead_idxs, weights = forward_map_indices(init_universe,
+                                                           mappings)
     n_frames = len(init_universe.trajectory)
-
     print("INFO - Mapping universe - positions")
     mapped_atoms = numba.typed.List(mapped_atoms)
     bead_idxs = numba.typed.List(bead_idxs)
+    weights   = numba.typed.List(weights)
     # extract the position array from universe
     # if it's not a trajectory we have to emulate
     # a single frame
@@ -126,6 +126,7 @@ def main():
 
     mapped_trajectory = forward_map_positions(mapped_atoms,
                                               bead_idxs,
+                                              weights,
                                               positions,
                                               n_frames,
                                               args.mode,

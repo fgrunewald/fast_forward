@@ -85,6 +85,7 @@ def forward_map_indices(universe, mappings):
     Map the universe atom indices to the new universe.
     """
     mapped_atoms = []
+    weights = []
     bead_idxs = []
     total_beads = 0
     for residue in universe.res_iter():
@@ -93,19 +94,22 @@ def forward_map_indices(universe, mappings):
         mapping = mappings[resname]
         for bead_count, bead in enumerate(mapping.beads):
             idxs = mapping.bead_to_idx[bead]
+            weights_from_atoms = mapping.atom_weights[bead]
             names = mapping.bead_to_atom[bead]
             atoms = _selector(residue.atoms, idxs, names)
+            weights.append(weights_from_atoms)
             mapped_atoms.append(atoms.indices)
             bead_idxs.append(total_beads)
             total_beads += 1
-    return mapped_atoms, bead_idxs
+    return mapped_atoms, bead_idxs, weights
 
-@njit(parallel=True)
-def forward_map_positions(mapped_atoms, bead_idxs, positions, n_frames, mode, treated_atoms):
+@njit(parallel=False)
+def forward_map_positions(mapped_atoms, bead_idxs, weights, positions, n_frames, mode, treated_atoms):
     new_trajectory = np.zeros((n_frames, len(mapped_atoms), 3))
     for count_lv1 in prange(len(mapped_atoms)):
         bead_idx = bead_idxs[np.int64(count_lv1)]
         atom_idxs = mapped_atoms[np.int64(count_lv1)]
+        atom_weights = weights[np.int64(count_lv1)]
         for fdx in prange(0, n_frames):
             pre_pos = np.array([0.0, 0.0, 0.0], dtype=np.float32)
             treat_pos = np.array([0.0, 0.0, 0.0], dtype=np.float32)
@@ -114,19 +118,27 @@ def forward_map_positions(mapped_atoms, bead_idxs, positions, n_frames, mode, tr
             # the treated atoms
             pre_count = 0
             treat_count = 0
-            for atom_idx in atom_idxs:
-                vector = positions[fdx, atom_idx, :]
-                if atom_idx not in treated_atoms:
-                    pre_pos = pre_pos + vector
-                    pre_count += 1
+            for atom_idx in prange(len(atom_idxs)):
+                vector = positions[fdx, atom_idxs[atom_idx], :]
+                if atom_idxs[atom_idx] not in treated_atoms:
+                    if np.float32(sum(atom_weights)) / len(atom_idxs) == 1.0:
+                        pre_pos = pre_pos +  atom_weights[atom_idx] *  vector
+                        pre_count += 1
+                    else:
+                        pre_pos = pre_pos +  np.float32(sum(atom_weights)) * atom_weights[atom_idx] *  vector
+                        pre_count += 1
                 else:
-                    treat_pos = treat_pos + vector
-                    treat_count += 1
+                    if np.float32(sum(atom_weights)) / len(atom_idxs) == 1.0:
+                        treat_pos = treat_pos + atom_weights[atom_idx] * vector
+                        treat_count += 1
+                    else:
+                        pre_pos = pre_pos +  np.float32(sum(atom_weights)) * atom_weights[atom_idx] * vector
+                        pre_count += 1
             if pre_count != 0:
-                pre_pos = pre_pos / pre_count
+                pre_pos = pre_pos / np.float32(sum(atom_weights))
                 new_pos = (pre_pos + treat_pos) / (treat_count + 1)
             else:
-                new_pos = treat_pos / treat_count
+                new_pos = treat_pos  / np.float32(sum(atom_weights))
             new_trajectory[fdx, bead_idx, :] = new_pos
 
     return new_trajectory
