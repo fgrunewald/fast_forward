@@ -26,7 +26,7 @@ def itp_writer(interactions_dict, molname):
         for name, value in interactions_dict[key].items():
             b = value[1]
             c = [x for xs in [[defaults[key]], value[0]] for x in xs]
-            l.append(b + c)
+            l.append((b, c))
         vermouth_interactions[key] = l
 
     # get information about the atomnames

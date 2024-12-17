@@ -39,7 +39,9 @@ def __main__():
     parser.add_argument('-n', type=str, dest="ndx_file", help="index file")
     parser.add_argument('-pref', type=str, dest="prefix", help="common prefix to filename", default="")
     parser.add_argument('-i', type=str, dest="itp_files", help="itp file", nargs='*')
-    parser.add_argument('-b', type=pathlib.Path, dest="bond_file", help="itp file", )
+    parser.add_argument('-b', type=pathlib.Path, dest="bond_file", help="itp file")
+    parser.add_argument('-p', default=False, action="store_true",
+                        dest="plots", help="save the fits of bonded interactions")
 
     args = parser.parse_args()
 
@@ -102,7 +104,7 @@ def __main__():
                                                                           prefix=args.prefix),
                            distr)
 
-                value, sigma = interaction_fitter(distr, interaction, '_'.join(atom_list))
+                value, sigma = interaction_fitter(distr, interaction, '_'.join(atom_list), plot=args.plots)
                 interactions_dict[interaction]['_'.join(atom_list)] = [value, sigma], indices
         molname = list(set(u.atoms.moltypes))[0]
         itp_writer(interactions_dict, molname)
