@@ -25,6 +25,10 @@ import fast_forward
 from fast_forward.compute_bonded import compute_value_for_interaction
 from fast_forward.itp_to_ag import itp_to_ag
 from fast_forward.itp_parser_sub import read_itp
+from collections import defaultdict
+from fast_forward.bonded_file_parser import read_bonds
+from fast_forward.interaction_fit import interaction_fitter
+from fast_forward.interactions_to_itp import itp_writer
 
 VERSION = 'fast_forward version {}'.format(fast_forward.__version__)
 
@@ -35,6 +39,7 @@ def __main__():
     parser.add_argument('-n', type=str, dest="ndx_file", help="index file")
     parser.add_argument('-pref', type=str, dest="prefix", help="common prefix to filename", default="")
     parser.add_argument('-i', type=str, dest="itp_files", help="itp file", nargs='*')
+    parser.add_argument('-b', type=pathlib.Path, dest="bond_file", help="itp file", )
 
     args = parser.parse_args()
 
@@ -61,13 +66,45 @@ def __main__():
                     np.savetxt("{prefix}{name}_{inter_type}.dat".format(name=group_name,
                                                                         inter_type=inter_type,
                                                                         prefix=args.prefix),
-                                                                        time_series)
+                               time_series)
 
                     probs, edges = np.histogram(time_series, density=True, bins=30)
                     center_points = edges[:-1] + np.diff(edges)/2.
                     distr = np.transpose((center_points, probs))
                     np.savetxt("{prefix}{name}_{inter_type}_distr.dat".format(name=group_name,
                                                                               inter_type=inter_type,
-                                                                              prefix=args.prefix), distr)
+                                                                              prefix=args.prefix),
+                               distr)
+
+    if args.bond_file:
+        bonded_interactions = read_bonds(args.bond_file)
+        interactions_dict = defaultdict(dict)
+        for interaction in bonded_interactions.keys():
+            for atom_list in bonded_interactions[interaction]:
+                # need this to make sure we have the correct [name, index] pairings
+                indices = []
+                for atom in atom_list:
+                    idx = u.select_atoms(f'name {atom}').indices[0]
+                    indices.append(idx)
+
+                time_series = compute_value_for_interaction(u, interaction, [np.array(indices)])
+
+                np.savetxt("{prefix}{name}_{inter_type}.dat".format(name='_'.join(atom_list),
+                                                                    inter_type=interaction,
+                                                                    prefix=args.prefix),
+                           time_series)
+
+                probs, edges = np.histogram(time_series, density=True, bins=30)
+                center_points = edges[:-1] + np.diff(edges) / 2.
+                distr = np.transpose((center_points, probs))
+                np.savetxt("{prefix}{name}_{inter_type}_distr.dat".format(name='_'.join(atom_list),
+                                                                          inter_type=interaction,
+                                                                          prefix=args.prefix),
+                           distr)
+
+                value, sigma = interaction_fitter(distr, interaction, '_'.join(atom_list))
+                interactions_dict[interaction]['_'.join(atom_list)] = [value, sigma], indices
+        molname = list(set(u.atoms.moltypes))[0]
+        itp_writer(interactions_dict, molname)
 
 __main__()
