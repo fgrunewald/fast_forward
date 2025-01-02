@@ -66,6 +66,7 @@ def interaction_fitter(data, interaction, atom_list, T=300, plot=False):
             ax.set_xlabel('Distance')
 
         fig.savefig(atom_list+'.png')
+        plt.close(fig)
 
     return center, sigma
 
