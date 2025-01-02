@@ -19,7 +19,7 @@ import networkx as nx
 
 def itp_writer(interactions_dict, molname):
     # rearrange the interactions for now until I work out how to do it properly
-    defaults = {'bonds': 1, 'angles': 2, 'dihedrals': 1}
+    defaults = {'bonds': 1, 'angles': 2, 'dihedrals': 1, 'constraints': 1}
     vermouth_interactions = {}
     for key in interactions_dict.keys():
         l = []
@@ -71,8 +71,16 @@ def itp_writer(interactions_dict, molname):
 
     # add the interactions
     for interaction_type in vermouth_interactions.keys():
-        for interaction in vermouth_interactions[interaction_type]:
-            mol.add_interaction(interaction_type, interaction[0], interaction[1])
+        if interaction_type != 'constraints':
+            for interaction in vermouth_interactions[interaction_type]:
+                mol.add_interaction(interaction_type, interaction[0], interaction[1])
+        else:
+            # add to both bonds and constraints for minimization purposes
+            for interaction in vermouth_interactions[interaction_type]:
+                mol.add_interaction(interaction_type, interaction[0], interaction[1][:2],
+                                    meta={ "ifndef": "FLEXIBLE"})
+                mol.add_interaction('bonds', interaction[0], interaction[1][:2] + ['10000'],
+                                    meta={ "ifdef": "FLEXIBLE"})
 
     # write the molecule out
     with open(f'{molname}.itp', 'w') as f:
