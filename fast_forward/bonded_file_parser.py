@@ -25,7 +25,7 @@ def read_bonds(infile):
             # we do this after a section is completed unless we start
             if group_name is not None:
                 interactions[group_name] = atoms
-            group_name = re.search(r'[a-z]+', line).group(0)
+            group_name = re.search(r'[a-z]+_?[a-z1-9]+', line).group(0)
             atoms = []
         else:
             if len(line.split()) > 0:

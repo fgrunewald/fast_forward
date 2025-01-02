@@ -19,11 +19,12 @@ import networkx as nx
 
 def itp_writer(interactions_dict, molname):
     # rearrange the interactions for now until I work out how to do it properly
-    defaults = {'bonds': 1, 'angles': 2, 'dihedrals': 1, 'constraints': 1}
+    defaults = {'bonds': 1, 'angles': 2, 'dihedrals': 1, 'constraints': 1,
+                'virtual_sitesn': 1, 'virtual_sites3': 2}
     vermouth_interactions = {}
     for key in interactions_dict.keys():
         l = []
-        for name, value in interactions_dict[key].items():
+        for _, value in interactions_dict[key].items():
             b = value[1]
             c = [x for xs in [[defaults[key]], value[0]] for x in xs]
             l.append((b, c))
@@ -38,9 +39,7 @@ def itp_writer(interactions_dict, molname):
             for i, j in zip(indices, names):
                 atomnames[i] = j
 
-    # assumes we don't have a virtual site as the last atom but oh well
-    natoms = list(atomnames.keys())[-1] + 1
-    nodes = np.arange(natoms)
+    nodes = np.arange(len(atomnames)+1)
 
     # make a list of nodes to construct a molecule from
     nodes_list = []
