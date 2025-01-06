@@ -43,6 +43,7 @@ def __main__():
     parser.add_argument('-b', type=pathlib.Path, dest="bond_file", help="itp file")
     parser.add_argument('-p', default=False, action="store_true",
                         dest="plots", help="save the fits of bonded interactions")
+    parser.add_argument('-name', default='mol', dest="molname", help="name of mapped molecule")
 
     args = parser.parse_args()
 
@@ -115,7 +116,11 @@ def __main__():
 
                     interactions_dict[interaction]['_'.join(atom_list)] = params, indices
 
-        molname = list(set(u.atoms.moltypes))[0]
+        if args.molname:
+            molname = args.molname
+        else:
+            molname = list(set(u.atoms.moltypes))[0]
+
         itp_writer(interactions_dict, molname)
 
 __main__()

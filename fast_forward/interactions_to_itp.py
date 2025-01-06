@@ -39,7 +39,7 @@ def itp_writer(interactions_dict, molname):
             for i, j in zip(indices, names):
                 atomnames[i] = j
 
-    nodes = np.arange(len(atomnames)+1)
+    nodes = np.arange(len(atomnames))
 
     # make a list of nodes to construct a molecule from
     nodes_list = []
