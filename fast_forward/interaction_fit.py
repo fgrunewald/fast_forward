@@ -15,6 +15,7 @@ import numpy as np
 from lmfit.models import GaussianModel
 import matplotlib.pyplot as plt
 from MDAnalysis.units import constants
+from lmfit import create_params
 
 
 def interaction_fitter(data, interaction, atom_list, T=300, plot=False):
@@ -26,7 +27,14 @@ def interaction_fitter(data, interaction, atom_list, T=300, plot=False):
 
     mod = GaussianModel()
 
-    pars = mod.guess(y, x=x)
+    if interaction in ['angles', 'dihedrals']:
+        pars = create_params(amplitude=dict(value=y.mean(), min=0),
+                             center=dict(value=x.mean(), min=x.mean() - 20, max=x.mean() + 20),
+                             sigma=dict(value=x.std(), min=x.std() / 2, max=x.std() * 1.5)
+                             )
+    else:
+        pars = mod.guess(y, x=x)
+
     out = mod.fit(y, pars, x=x)
 
     center = np.round(out.params["center"].value, 2)
@@ -70,7 +78,7 @@ def interaction_fitter(data, interaction, atom_list, T=300, plot=False):
         else:
             ax.set_xlabel('Distance')
 
-        fig.savefig(atom_list+'.png')
+        fig.savefig(atom_list+f'_{interaction}.png')
         plt.close(fig)
 
     return center, sigma

@@ -20,11 +20,32 @@ def read_bonds(infile):
     interactions = {}
     atoms = []
     group_name = None
+    atomtypes = {}
     for line in lines:
+        if line.strip().startswith(';'):
+            continue
         if line.startswith('['):
             # we do this after a section is completed unless we start
             if group_name is not None:
-                interactions[group_name] = atoms
+                if group_name != 'atomtypes':
+                    interactions[group_name] = atoms
+                else:
+                    for atom in atoms:
+                        atomname = atom[0]
+                        if atomname[0] == 'T':
+                            mass = 36
+                        elif atomname[0] == 'S':
+                            mass = 54
+                        else:
+                            mass = 72
+
+                        atomtype = atom[1]
+                        if len(atom) == 3:
+                            charge = atom[2]
+                        else:
+                            charge = 0
+                        atomtypes[atomname] = {'atype': atomtype, 'charge': charge, 'mass': mass}
+
             group_name = re.search(r'[a-z]+_?[a-z1-9]+', line).group(0)
             atoms = []
         else:
@@ -33,4 +54,4 @@ def read_bonds(infile):
     # do the last one
     interactions[group_name] = atoms
 
-    return interactions
+    return interactions, atomtypes

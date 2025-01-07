@@ -81,7 +81,7 @@ def __main__():
                                distr)
 
     if args.bond_file:
-        bonded_interactions = read_bonds(args.bond_file)
+        bonded_interactions, atomtypes = read_bonds(args.bond_file)
         interactions_dict = defaultdict(dict)
         for interaction in bonded_interactions.keys():
             for atom_list in bonded_interactions[interaction]:
@@ -121,6 +121,6 @@ def __main__():
         else:
             molname = list(set(u.atoms.moltypes))[0]
 
-        itp_writer(interactions_dict, molname)
+        itp_writer(interactions_dict, atomtypes, molname)
 
 __main__()
