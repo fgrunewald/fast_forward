@@ -27,7 +27,7 @@ from fast_forward.itp_to_ag import itp_to_ag
 from fast_forward.itp_parser_sub import read_itp
 from collections import defaultdict
 from fast_forward.bonded_file_parser import read_bonds
-from fast_forward.virtual_site_calculator import vs_handler
+from fast_forward.virtual_site_calculator import vs_handler, mass_redistribution
 from fast_forward.interaction_fit import interaction_fitter
 from fast_forward.interactions_to_itp import itp_writer
 
@@ -115,6 +115,8 @@ def __main__():
                                                  args.prefix, plot=args.plots)
 
                     interactions_dict[interaction]['_'.join(atom_list)] = params, indices
+
+                    atomtypes = mass_redistribution(atomtypes, atom_list)
 
         if args.molname:
             molname = args.molname

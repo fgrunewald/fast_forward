@@ -17,6 +17,15 @@ import numpy as np
 from fast_forward.interaction_fit import interaction_fitter
 
 
+def mass_redistribution(atomtypes, atomlist):
+    extra_mass = atomtypes[atomlist[0]]['mass'] / (len(atomlist)-1)
+    atomtypes[atomlist[0]]['mass'] = 0
+    for i in atomlist[1:]:
+        atomtypes[i]['mass'] = int(atomtypes[i]['mass']+extra_mass)
+
+    return atomtypes
+
+
 def func(pars, x, data):
     vals = pars.valuesdict()
     a = vals['a']
