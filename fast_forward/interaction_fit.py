@@ -42,7 +42,7 @@ def interaction_fitter(data, interaction, atom_list, T=310, plot=False):
     # need this here because mdanalysis read gromacs coords in angstroms but need in nm.
     # can't convert earlier because otherwise the force constant goes stonks with small widths
     if interaction in ['bonds', 'constraints']:
-        center = np.round(center / 10, 3)
+        center = f'{np.round(center / 10, 3):.3f}'
     if interaction == "dihedrals":
         center -= 180
         center = ((center + 180) % 360) - 180
