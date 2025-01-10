@@ -82,18 +82,23 @@ def __main__():
                     idx = u.select_atoms(f'name {atom}').indices[0]
                     indices.append(idx)
 
+                # need to treat virtual sites separately
                 if 'virtual_site' not in interaction:
+                    # calculate distributions
                     distr = interaction_distribution(u, interaction, [np.array(indices)],
                                                      '_'.join(atom_list), args.prefix)
 
+                    # fit the distributions for the interaction
                     value, sigma = interaction_fitter(distr, interaction, '_'.join(atom_list), plot=args.plots)
 
+                    # check bonds if they should become constraints
                     if (interaction == "bonds") and sigma > args.constraint_convert:
                         interactions_dict["constraints"]['_'.join(atom_list)] = [value, sigma], indices
                     else:
                         interactions_dict[interaction]['_'.join(atom_list)] = [value, sigma], indices
 
                 else:
+                    # calculate virtual site position
                     params, indices = vs_handler(interaction, u, indices, '_'.join(atom_list),
                                                  args.prefix, plot=args.plots)
 

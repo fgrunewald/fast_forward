@@ -48,23 +48,24 @@ def itp_writer(interactions_dict, atomtypes, molname, command_used):
     nodes_list = []
     for node in nodes:
         if node in list(atomnames.keys()):
-            l = [node, {'atomname': atomnames[node],
-                        'atype': atomtypes[atomnames[node]]['atype'],
-                        'charge': atomtypes[atomnames[node]]['charge'],
-                        'mass': atomtypes[atomnames[node]]['mass'],
-                        'resid': '1',
-                        'resname': molname,
-                        'charge_group': node + 1}]
+            node_data = [node, {'atomname': atomnames[node],
+                                'atype': atomtypes[atomnames[node]]['atype'],
+                                'charge': atomtypes[atomnames[node]]['charge'],
+                                'mass': atomtypes[atomnames[node]]['mass'],
+                                'resid': '1',
+                                'resname': molname,
+                                'charge_group': node + 1}]
         else:
-            l = [node, {'atomname': "TMP",
-                        'atype': "TMP",
-                        "charge": '0.0',
-                        'resid': '1',
-                        'resname': molname,
-                        'charge_group': node + 1}]
+            node_data = [node, {'atomname': "TMP",
+                                'atype': "TMP",
+                                "charge": '0.0',
+                                'resid': '1',
+                                'resname': molname,
+                                'charge_group': node + 1}]
 
-        nodes_list.append(l)
+        nodes_list.append(node_data)
 
+    # do exclusions across whole molecule just to be sure
     exclusions = []
     for index, node in enumerate(nodes[:-1]):
         exclusions.append([tuple(nodes[index:]), []])
@@ -90,8 +91,12 @@ def itp_writer(interactions_dict, atomtypes, molname, command_used):
                 mol.add_interaction('bonds', interaction[0], interaction[1][:2] + ['10000'],
                                     meta={"ifdef": "FLEXIBLE"})
 
-    header = [command_used, '\n', 'initial itp generation done by fast forward']
+    header = ['This file was generated using the following command:',
+              command_used, '\n',
+              'initial itp generation done by Fast-Forward. Please cite:',
+              'https://zenodo.org/badge/latestdoi/327071500']
+
     # write the molecule out
-    with open(f'{molname}.itp', 'w') as f:
-        write_molecule_itp(mol, f, moltype=molname, header=header)
+    with open(f'{molname}.itp', 'w') as fout:
+        write_molecule_itp(mol, fout, moltype=molname, header=header)
 
