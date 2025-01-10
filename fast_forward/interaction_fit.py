@@ -37,12 +37,12 @@ def interaction_fitter(data, interaction, atom_list, T=310, plot=False):
 
     out = mod.fit(y, pars, x=x)
 
-    center = np.round(out.params["center"].value, 2)
+    center = np.round(out.params["center"].value, 3)
 
     # need this here because mdanalysis read gromacs coords in angstroms but need in nm.
     # can't convert earlier because otherwise the force constant goes stonks with small widths
     if interaction in ['bonds', 'constraints']:
-        center = np.round(center / 10, 2)
+        center = np.round(center / 10, 3)
 
     if (interaction == "dihedrals") or (interaction == 'angles'):
         sin_term = np.sin(np.deg2rad(np.round(out.params["center"].value, 2))) ** 2
