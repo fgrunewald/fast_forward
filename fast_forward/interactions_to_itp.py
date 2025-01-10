@@ -65,6 +65,11 @@ def itp_writer(interactions_dict, atomtypes, molname):
 
         nodes_list.append(l)
 
+    exclusions = []
+    for index, node in enumerate(nodes[:-1]):
+        exclusions.append([tuple(nodes[index:]), []])
+    vermouth_interactions['exclusions'] = exclusions
+
     # make the molecule from a graph
     G = nx.Graph()
     G.add_nodes_from(nodes_list)
