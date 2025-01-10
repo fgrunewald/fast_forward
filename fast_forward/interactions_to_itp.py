@@ -17,7 +17,7 @@ from vermouth import Molecule
 import numpy as np
 import networkx as nx
 
-def itp_writer(interactions_dict, atomtypes, molname):
+def itp_writer(interactions_dict, atomtypes, molname, command_used):
     # rearrange the interactions for now until I work out how to do it properly
     defaults = {'bonds': 1, 'angles': 2, 'dihedrals': 1, 'constraints': 1,
                 'virtual_sitesn': 1, 'virtual_sites3': 2}
@@ -90,7 +90,8 @@ def itp_writer(interactions_dict, atomtypes, molname):
                 mol.add_interaction('bonds', interaction[0], interaction[1][:2] + ['10000'],
                                     meta={"ifdef": "FLEXIBLE"})
 
+    header = [command_used, '\n', 'initial itp generation done by fast forward']
     # write the molecule out
     with open(f'{molname}.itp', 'w') as f:
-        write_molecule_itp(mol, f, moltype=molname)
+        write_molecule_itp(mol, f, moltype=molname, header=header)
 

@@ -21,8 +21,8 @@ import pathlib
 import numpy as np
 import MDAnalysis as mda
 import vermouth.forcefield
+import sys
 import fast_forward
-from fast_forward.compute_bonded import compute_value_for_interaction
 from fast_forward.itp_to_ag import itp_to_ag
 from fast_forward.itp_parser_sub import read_itp
 from collections import defaultdict
@@ -106,6 +106,6 @@ def __main__():
         else:
             molname = list(set(u.atoms.moltypes))[0]
 
-        itp_writer(interactions_dict, atomtypes, molname)
+        itp_writer(interactions_dict, atomtypes, molname, command_used=' '.join(sys.argv))
 
 __main__()
