@@ -47,11 +47,18 @@ def interaction_fitter(data, interaction, atom_list, T=310, plot=False):
         center -= 180
         center = ((center + 180) % 360) - 180
 
-    if (interaction == "dihedrals") or (interaction == 'angles'):
+    if interaction == 'angles':
         center = int(np.rint(center))
         sin_term = np.sin(np.deg2rad(center)) ** 2
         var = np.deg2rad(out.params["sigma"].value) ** 2
         sigma = np.round((R * T) / (sin_term * var), 2)
+    elif interaction == "dihedrals":
+        center = int(np.rint(center))
+        init = np.deg2rad(out.params["sigma"].value)
+        sin = np.sin(init)
+        cos = np.cos(init)
+        circ = np.atan2(sin, cos)
+        sigma = np.round((R * T) / (circ ** 2), 1)
     else:
         sigma = np.round((R * T) / ((out.params["sigma"].value/10) ** 2), -1)
 
