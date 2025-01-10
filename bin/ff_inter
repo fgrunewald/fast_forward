@@ -30,6 +30,7 @@ from fast_forward.bonded_file_parser import read_bonds
 from fast_forward.virtual_site_calculator import vs_handler, mass_redistribution
 from fast_forward.interaction_fit import interaction_fitter
 from fast_forward.interactions_to_itp import itp_writer
+from fast_forward.interaction_distribution import interaction_distribution
 
 VERSION = 'fast_forward version {}'.format(fast_forward.__version__)
 
@@ -66,19 +67,7 @@ def __main__():
             interaction_groups = itp_to_ag(block, molname, u)
             for inter_type in ['bonds', 'angles', 'dihedrals']:
                 for group_name, pair_idxs in interaction_groups[inter_type].items():
-                    time_series = compute_value_for_interaction(u, inter_type, pair_idxs)
-                    np.savetxt("{prefix}{name}_{inter_type}.dat".format(name=group_name,
-                                                                        inter_type=inter_type,
-                                                                        prefix=args.prefix),
-                               time_series)
-
-                    probs, edges = np.histogram(time_series, density=True, bins=30)
-                    center_points = edges[:-1] + np.diff(edges)/2.
-                    distr = np.transpose((center_points, probs))
-                    np.savetxt("{prefix}{name}_{inter_type}_distr.dat".format(name=group_name,
-                                                                              inter_type=inter_type,
-                                                                              prefix=args.prefix),
-                               distr)
+                    interaction_distribution(u, inter_type, pair_idxs, group_name, args.prefix)
 
     if args.bond_file:
         bonded_interactions, atomtypes = read_bonds(args.bond_file)
@@ -92,20 +81,8 @@ def __main__():
                     indices.append(idx)
 
                 if 'virtual_site' not in interaction:
-                    time_series = compute_value_for_interaction(u, interaction, [np.array(indices)])
-
-                    np.savetxt("{prefix}{name}_{inter_type}.dat".format(name='_'.join(atom_list),
-                                                                        inter_type=interaction,
-                                                                        prefix=args.prefix),
-                               time_series)
-
-                    probs, edges = np.histogram(time_series, density=True, bins=30)
-                    center_points = edges[:-1] + np.diff(edges) / 2.
-                    distr = np.transpose((center_points, probs))
-                    np.savetxt("{prefix}{name}_{inter_type}_distr.dat".format(name='_'.join(atom_list),
-                                                                              inter_type=interaction,
-                                                                              prefix=args.prefix),
-                               distr)
+                    distr = interaction_distribution(u, interaction, [np.array(indices)],
+                                                     '_'.join(atom_list), args.prefix)
 
                     value, sigma = interaction_fitter(distr, interaction, '_'.join(atom_list), plot=args.plots)
                     interactions_dict[interaction]['_'.join(atom_list)] = [value, sigma], indices
