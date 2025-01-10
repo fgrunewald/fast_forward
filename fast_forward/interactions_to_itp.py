@@ -26,7 +26,10 @@ def itp_writer(interactions_dict, atomtypes, molname):
         l = []
         for _, value in interactions_dict[key].items():
             b = value[1]
-            c = [x for xs in [[defaults[key]], value[0]] for x in xs]
+            if key == 'dihedrals':
+                c = [x for xs in [[defaults[key]], value[0], [1]] for x in xs]
+            else:
+                c = [x for xs in [[defaults[key]], value[0]] for x in xs]
             l.append((b, c))
         vermouth_interactions[key] = l
 
