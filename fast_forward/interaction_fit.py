@@ -18,7 +18,7 @@ from MDAnalysis.units import constants
 from lmfit import create_params
 
 
-def interaction_fitter(data, interaction, atom_list, T=300, plot=False):
+def interaction_fitter(data, interaction, atom_list, T=310, plot=False):
     # this is not the boltzmann constant, but for some reason mda calls it this?
     R = constants['Boltzmann_constant']
 
@@ -49,7 +49,7 @@ def interaction_fitter(data, interaction, atom_list, T=300, plot=False):
         var = np.deg2rad(out.params["sigma"].value) ** 2
         sigma = np.round((R * T) / (sin_term * var), 2)
     else:
-        sigma = np.round((R * T) / (out.params["sigma"].value ** 2), -1)
+        sigma = np.round((R * T) / ((out.params["sigma"].value/10) ** 2), -1)
 
     if plot:
         fig, ax = plt.subplots()

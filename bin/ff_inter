@@ -45,6 +45,8 @@ def __main__():
     parser.add_argument('-p', default=False, action="store_true",
                         dest="plots", help="save the fits of bonded interactions")
     parser.add_argument('-name', default='mol', dest="molname", help="name of mapped molecule")
+    parser.add_argument('-constraints', dest='constraint_convert', default = 10000, type=int,
+                        help="force constant above which to convert bonds to constraints")
 
     args = parser.parse_args()
 
@@ -85,7 +87,11 @@ def __main__():
                                                      '_'.join(atom_list), args.prefix)
 
                     value, sigma = interaction_fitter(distr, interaction, '_'.join(atom_list), plot=args.plots)
-                    interactions_dict[interaction]['_'.join(atom_list)] = [value, sigma], indices
+
+                    if (interaction == "bonds") and sigma > args.constraint_convert:
+                        interactions_dict["constraints"]['_'.join(atom_list)] = [value, sigma], indices
+                    else:
+                        interactions_dict[interaction]['_'.join(atom_list)] = [value, sigma], indices
 
                 else:
                     params, indices = vs_handler(interaction, u, indices, '_'.join(atom_list),

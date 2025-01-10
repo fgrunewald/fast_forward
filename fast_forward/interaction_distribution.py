@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from compute_bonded import compute_value_for_interaction
+from fast_forward.compute_bonded import compute_value_for_interaction
 import numpy as np
 
 def interaction_distribution(u, inter_type, pair_idxs, group_name, prefix):
