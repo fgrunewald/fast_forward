@@ -17,7 +17,9 @@ from vermouth import Molecule
 import numpy as np
 import networkx as nx
 
-def itp_writer(interactions_dict, atomtypes, molname, command_used):
+from vermouth.file_writer import deferred_open
+
+def itp_writer(molname, block, interactions_dict, command_used):
     # rearrange the interactions for now until I work out how to do it properly
     defaults = {'bonds': 1, 'angles': 2, 'dihedrals': 1, 'constraints': 1,
                 'virtual_sitesn': 1, 'virtual_sites3': 2}
@@ -25,7 +27,9 @@ def itp_writer(interactions_dict, atomtypes, molname, command_used):
     for key in interactions_dict.keys():
         l = []
         for _, value in interactions_dict[key].items():
-            b = value[1]
+            b = [i for j in value[1] for i in j]
+
+            # need this to add multiplicity default to dihedrals
             if key == 'dihedrals':
                 c = [x for xs in [[defaults[key]], value[0], [1]] for x in xs]
             else:
@@ -33,70 +37,35 @@ def itp_writer(interactions_dict, atomtypes, molname, command_used):
             l.append((b, c))
         vermouth_interactions[key] = l
 
-    # get information about the atomnames
-    atomnames = {}
-    for key in interactions_dict.keys():
-        for k, v in interactions_dict[key].items():
-            names = k.split('_')
-            indices = v[1]
-            for i, j in zip(indices, names):
-                atomnames[i] = j
-
-    nodes = np.arange(len(atomnames))
-
-    # make a list of nodes to construct a molecule from
-    nodes_list = []
-    for node in nodes:
-        if node in list(atomnames.keys()):
-            node_data = [node, {'atomname': atomnames[node],
-                                'atype': atomtypes[atomnames[node]]['atype'],
-                                'charge': atomtypes[atomnames[node]]['charge'],
-                                'mass': atomtypes[atomnames[node]]['mass'],
-                                'resid': '1',
-                                'resname': molname,
-                                'charge_group': node + 1}]
-        else:
-            node_data = [node, {'atomname': "TMP",
-                                'atype': "TMP",
-                                "charge": '0.0',
-                                'resid': '1',
-                                'resname': molname,
-                                'charge_group': node + 1}]
-
-        nodes_list.append(node_data)
-
-    # do exclusions across whole molecule just to be sure
-    exclusions = []
-    for index, node in enumerate(nodes[:-1]):
-        exclusions.append([tuple(nodes[index:]), []])
-    vermouth_interactions['exclusions'] = exclusions
-
-    # make the molecule from a graph
-    G = nx.Graph()
-    G.add_nodes_from(nodes_list)
-
-    mol = Molecule(G)
-    mol.nrexcl = 1
-
     # add the interactions
     for interaction_type in vermouth_interactions.keys():
         if interaction_type != 'constraints':
             for interaction in vermouth_interactions[interaction_type]:
-                mol.add_interaction(interaction_type, interaction[0], interaction[1])
+                comment = '_'.join([block.nodes[i]['atomname'] for i in interaction[0]])
+
+                block.remove_interaction(interaction_type, interaction[0])
+
+                block.add_interaction(interaction_type, interaction[0], interaction[1], meta={"comment": comment})
         else:
             # add to both bonds and constraints for minimization purposes
             for interaction in vermouth_interactions[interaction_type]:
-                mol.add_interaction(interaction_type, interaction[0], interaction[1][:2],
-                                    meta={"ifndef": "FLEXIBLE"})
-                mol.add_interaction('bonds', interaction[0], interaction[1][:2] + ['10000'],
-                                    meta={"ifdef": "FLEXIBLE"})
+                comment = '_'.join([block.nodes[i]['atomname'] for i in interaction[0]])
+
+                block.remove_interaction('bonds', interaction[0])
+
+                block.add_interaction(interaction_type, interaction[0], interaction[1][:2],
+                                    meta={"ifndef": "FLEXIBLE", "comment": comment})
+                block.add_interaction('bonds', interaction[0], interaction[1][:2] + ['10000'],
+                                    meta={"ifdef": "FLEXIBLE", "comment": comment})
 
     header = ['This file was generated using the following command:',
               command_used, '\n',
               'initial itp generation done by Fast-Forward. Please cite:',
               'https://zenodo.org/badge/latestdoi/327071500']
 
-    # write the molecule out
-    with open(f'{molname}.itp', 'w') as fout:
-        write_molecule_itp(mol, fout, moltype=molname, header=header)
+    # make the block a molecule for writing
+    mol_out = block.to_molecule()
+    mol_out.meta['molname'] = molname
 
+    with deferred_open(f'{molname}.itp', 'w') as fout:
+        write_molecule_itp(mol_out, fout, moltype=molname, header=header)

@@ -44,7 +44,8 @@ def generate_template_itp(residue_dict, links_dict, molname):
 
     default_parameters = {'bonds': [1, 1, 1000],
                           'angles': [2, 100, 200],
-                          'dihedrals': [1, 90, 10, 1]}
+                          'dihedrals': [1, 90, 10, 1],
+                          'virtual_sitesn': [1]}
 
     # sort out intra residue interactions
     for residue in residue_dict.keys():
@@ -61,20 +62,21 @@ def generate_template_itp(residue_dict, links_dict, molname):
                                     default_parameters[interaction],
                                     meta={'comment': '_'.join(atomset)})
 
-    # sort out the inter residue interactions
-    for interaction in links_dict.keys():
-        for atomset in links_dict[interaction]:
-            atoms = []
-            for i in atomset:
-                resname, atomname = i.split(':')
-                for node in mol.nodes:
-                    if (mol.nodes[node]['atomname'] == atomname) and (mol.nodes[node]['resname'] == resname):
-                        atoms.append(node)
+    if links_dict is not None:
+        # sort out the inter residue interactions
+        for interaction in links_dict.keys():
+            for atomset in links_dict[interaction]:
+                atoms = []
+                for i in atomset:
+                    resname, atomname = i.split(':')
+                    for node in mol.nodes:
+                        if (mol.nodes[node]['atomname'] == atomname) and (mol.nodes[node]['resname'] == resname):
+                            atoms.append(node)
 
-            mol.add_interaction(interaction,
-                                atoms,
-                                default_parameters[interaction],
-                                meta={'comment': '_'.join(atomset)})
+                mol.add_interaction(interaction,
+                                    atoms,
+                                    default_parameters[interaction],
+                                    meta={'comment': '_'.join(atomset)})
 
 
     header = ['initial itp generation done by Fast-Forward. Please cite:',

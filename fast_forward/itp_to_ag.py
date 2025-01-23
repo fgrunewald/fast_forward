@@ -14,7 +14,7 @@ def find_indices(universe, atoms, molname, natoms):
     indices = []
     atoms = np.array(atoms)
     mol_atoms = universe.atoms[universe.atoms.moltypes == molname]
-    n_mols =  len(set(mol_atoms.molnums))
+    n_mols = len(set(mol_atoms.molnums))
     for idx in range(0, n_mols):
         pairs = mol_atoms.indices[atoms + idx * natoms]
         indices.append(pairs)

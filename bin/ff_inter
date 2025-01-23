@@ -32,6 +32,7 @@ from fast_forward.interaction_fit import interaction_fitter
 from fast_forward.interactions_to_itp import itp_writer
 from fast_forward.interaction_distribution import interaction_distribution
 from fast_forward.interaction_plots import make_distribution_plot
+from vermouth.file_writer import DeferredFileWriter
 
 VERSION = 'fast_forward version {}'.format(fast_forward.__version__)
 
@@ -42,12 +43,12 @@ def __main__():
     parser.add_argument('-n', type=str, dest="ndx_file", help="index file")
     parser.add_argument('-pref', type=str, dest="prefix", help="common prefix to filename", default="")
     parser.add_argument('-i', type=str, dest="itp_files", help="itp file", nargs='*')
-    parser.add_argument('-b', type=pathlib.Path, dest="bond_file", help="file containing bonds")
+    # parser.add_argument('-b', type=pathlib.Path, dest="bond_file", help="file containing bonds")
     parser.add_argument('-plots', default=False, action="store_true",
                         dest="plots", help="save the fits of bonded interactions")
     parser.add_argument('-plot-data', default=False, action="store_true",
                         dest="plot_data", help="save a pickle file containing the input data for the plots")
-    parser.add_argument('-name', default='mol', dest="molname", help="name of mapped molecule")
+    # parser.add_argument('-name', default='mol', dest="molname", help="name of mapped molecule")
     parser.add_argument('-constraints', dest='constraint_convert', default=10000, type=int,
                         help="force constant above which to convert bonds to constraints")
     parser.add_argument('-precision', dest='precision', default=3, type=int,
@@ -71,55 +72,26 @@ def __main__():
 
         # loop over molecules
         for molname, block in ff.blocks.items():
+            interactions_dict = defaultdict(dict)
             interaction_groups = itp_to_ag(block, molname, u)
             for inter_type in ['bonds', 'angles', 'dihedrals']:
                 for group_name, pair_idxs in interaction_groups[inter_type].items():
-                    interaction_distribution(u, inter_type, pair_idxs, group_name, args.prefix)
-
-    if args.bond_file:
-        bonded_interactions, atomtypes = read_bonds(args.bond_file)
-        interactions_dict = defaultdict(dict)
-        for interaction in bonded_interactions.keys():
-            for atom_list in bonded_interactions[interaction]:
-                # need this to make sure we have the correct [name, index] pairings
-                indices = []
-                for atom in atom_list:
-                    idx = u.select_atoms(f'name {atom}').indices[0]
-                    indices.append(idx)
-
-                # need to treat virtual sites separately
-                if 'virtual_site' not in interaction:
-                    # calculate distributions
-                    distr = interaction_distribution(u, interaction, [np.array(indices)],
-                                                     '_'.join(atom_list), args.prefix)
+                    distr = interaction_distribution(u, inter_type, pair_idxs, group_name, args.prefix)
 
                     # fit the distributions for the interaction
-                    value, sigma, fit_result = interaction_fitter(distr, interaction, args.precision)
+                    value, sigma, fit_result = interaction_fitter(distr, inter_type, args.precision)
 
                     if args.plots:
-                        make_distribution_plot(distr, fit_result, '_'.join(atom_list), interaction, args.plot_data)
-
+                        make_distribution_plot(distr, fit_result, group_name, inter_type, args.plot_data)
 
                     # check bonds if they should become constraints
-                    if (interaction == "bonds") and sigma > args.constraint_convert:
-                        interactions_dict["constraints"]['_'.join(atom_list)] = [value, sigma], indices
+                    if (inter_type == "bonds") and sigma > args.constraint_convert:
+                        interactions_dict["constraints"][group_name] = [value, sigma], pair_idxs
                     else:
-                        interactions_dict[interaction]['_'.join(atom_list)] = [value, sigma], indices
+                        interactions_dict[inter_type][group_name] = [value, sigma], pair_idxs
 
-                else:
-                    # calculate virtual site position
-                    params, indices = vs_handler(interaction, u, indices, '_'.join(atom_list),
-                                                 args.prefix, plot=args.plots)
+            itp_writer(molname, block, interactions_dict, command_used=' '.join(sys.argv))
 
-                    interactions_dict[interaction]['_'.join(atom_list)] = params, indices
-
-                    atomtypes = mass_redistribution(atomtypes, atom_list)
-
-        if args.molname:
-            molname = args.molname
-        else:
-            molname = list(set(u.atoms.moltypes))[0]
-
-        itp_writer(interactions_dict, atomtypes, molname, command_used=' '.join(sys.argv))
+    DeferredFileWriter().write()
 
 __main__()
