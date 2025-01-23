@@ -22,7 +22,12 @@ def interaction_distribution(u, inter_type, pair_idxs, group_name, prefix):
                                                         prefix=prefix),
                time_series)
 
-    probs, edges = np.histogram(time_series, density=True, bins=30)
+    bins_dict = {"bonds": np.arange(time_series.min()-0.1, time_series.max()+0.1, 0.01),
+                 "angles": np.arange(181),
+                 "dihedrals": np.arange(-180, 181)
+                 }
+
+    probs, edges = np.histogram(time_series, density=True, bins=bins_dict[inter_type])
     center_points = edges[:-1] + np.diff(edges)/2.
     distr = np.transpose((center_points, probs))
     np.savetxt("{prefix}{name}_{inter_type}_distr.dat".format(name=group_name,

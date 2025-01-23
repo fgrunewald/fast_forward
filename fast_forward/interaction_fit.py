@@ -18,8 +18,64 @@ from MDAnalysis.units import constants
 from lmfit import create_params
 
 
-def interaction_fitter(data, interaction, atom_list, T=310, plot=False):
-    # this is not the boltzmann constant, but for some reason mda calls it this?
+def make_distribution_plot(x, y, out, atom_list, interaction):
+    fig, ax = plt.subplots()
+
+    ax.plot(x, y, c='#6970E0', label='Distribution')
+    ax.plot(x, out.best_fit, c='#E06B69', label='Fit')
+
+    curr_lims = ax.get_ylim()
+    ax.set_ylim(0, curr_lims[1] + (curr_lims[1] * 0.1))
+
+    ax.axvline(out.params['center'].value, c='#506155', label=f"Center = {out.params['center'].value: .2f}")
+    ax.fill_between(np.linspace(out.params['center'].value - out.params['sigma'].value,
+                                out.params['center'].value + out.params['sigma'].value,
+                                100),
+                    curr_lims[1] + (curr_lims[1] * 0.1),
+                    color='#506155',
+                    alpha=0.35,
+                    label=f"Sigma = {out.params['sigma'].value: .2f}")
+
+    ax.legend()
+    ax.set_title(atom_list)
+
+    if (interaction == "dihedrals") or (interaction == 'angles'):
+        ax.set_xlabel('Angle')
+        ax.set_xlim(-180, 180)
+    else:
+        ax.set_xlabel('Distance')
+
+    fig.savefig(atom_list + f'_{interaction}.png')
+    plt.close(fig)
+
+def _bonds_fitter(initial_center, initial_sigma, precision, R, T):
+    # need this here because mdanalysis read gromacs coords in angstroms but need in nm.
+    center = f'{np.round(initial_center / 10, precision):.{precision}f}'
+    sigma = np.round((R * T) / ((initial_sigma / 10) ** 2), -1)
+    return center, sigma
+
+def _angles_fitter(initial_center, initial_sigma, precision, R, T):
+    center = f'{np.round(initial_center, precision):.{precision}f}'
+    sin_term = np.sin(np.deg2rad(float(center))) ** 2
+    var = np.deg2rad(initial_sigma) ** 2
+    sigma = np.round((R * T) / (sin_term * var), 2)
+    return center, sigma
+
+def _dihedrals_fitter(initial_center, initial_sigma, precision, R, T):
+
+    initial_center -= 180
+    center = ((initial_center + 180) % 360) - 180
+    center = f'{np.round(center, precision):.{precision}f}'
+
+    init = np.deg2rad(initial_sigma)
+    sin = np.sin(init)
+    cos = np.cos(init)
+    circ = np.atan2(sin, cos)
+    sigma = np.round((R * T) / (circ ** 2), 1)
+    return center, sigma
+
+def interaction_fitter(data, interaction, precision=3, T=310):
+
     R = constants['Boltzmann_constant']
 
     x = data.T[0]
@@ -35,62 +91,18 @@ def interaction_fitter(data, interaction, atom_list, T=310, plot=False):
     else:
         pars = mod.guess(y, x=x)
 
-    out = mod.fit(y, pars, x=x)
+    fit_result = mod.fit(y, pars, x=x)
 
-    center = out.params["center"].value
+    center = fit_result.params["center"].value
+    sigma = fit_result.params["sigma"].value
 
-    # need this here because mdanalysis read gromacs coords in angstroms but need in nm.
-    # can't convert earlier because otherwise the force constant goes stonks with small widths
-    if interaction in ['bonds', 'constraints']:
-        center = f'{np.round(center / 10, 3):.3f}'
-    if interaction == "dihedrals":
-        center -= 180
-        center = ((center + 180) % 360) - 180
+    func_dict = {'bonds': _bonds_fitter,
+                 'constraints': _bonds_fitter,
+                 'angles': _angles_fitter,
+                 'dihedrals': _dihedrals_fitter,
+                 }
 
-    if interaction == 'angles':
-        center = int(np.rint(center))
-        sin_term = np.sin(np.deg2rad(center)) ** 2
-        var = np.deg2rad(out.params["sigma"].value) ** 2
-        sigma = np.round((R * T) / (sin_term * var), 2)
-    elif interaction == "dihedrals":
-        center = int(np.rint(center))
-        init = np.deg2rad(out.params["sigma"].value)
-        sin = np.sin(init)
-        cos = np.cos(init)
-        circ = np.atan2(sin, cos)
-        sigma = np.round((R * T) / (circ ** 2), 1)
-    else:
-        sigma = np.round((R * T) / ((out.params["sigma"].value/10) ** 2), -1)
+    center, sigma = func_dict[interaction](center, sigma, precision, R, T)
 
-    if plot:
-        fig, ax = plt.subplots()
-
-        ax.plot(x, y, c='#6970E0', label='Distribution')
-        ax.plot(x, out.best_fit, c='#E06B69', label='Fit')
-
-        curr_lims = ax.get_ylim()
-        ax.set_ylim(0, curr_lims[1] + (curr_lims[1] * 0.1))
-
-        ax.axvline(out.params['center'].value, c='#506155', label=f"Center = {out.params['center'].value: .2f}")
-        ax.fill_between(np.linspace(out.params['center'].value - out.params['sigma'].value,
-                                    out.params['center'].value + out.params['sigma'].value,
-                                    100),
-                        curr_lims[1] + (curr_lims[1] * 0.1),
-                        color='#506155',
-                        alpha=0.35,
-                        label=f"Sigma = {out.params['sigma'].value: .2f}")
-
-        ax.legend()
-        ax.set_title(atom_list)
-
-        if (interaction == "dihedrals") or (interaction == 'angles'):
-            ax.set_xlabel('Angle')
-            ax.set_xlim(-180, 180)
-        else:
-            ax.set_xlabel('Distance')
-
-        fig.savefig(atom_list+f'_{interaction}.png')
-        plt.close(fig)
-
-    return center, sigma
+    return center, sigma, fit_result
 

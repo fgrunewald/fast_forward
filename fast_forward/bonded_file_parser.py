@@ -33,12 +33,11 @@ def read_bonds(infile):
                     for atom in atoms:
                         atomname = atom[0]
                         atomtype = atom[1]
-                        if atomtype[0] == 'T':
-                            mass = 36
-                        elif atomtype[0] == 'S':
-                            mass = 54
-                        else:
-                            mass = 72
+
+                        mass_dict = {'T': 36, 'S': 54}
+
+                        mass = mass_dict.get(atomtype[0], 72)
+
                         if len(atom) == 3:
                             charge = atom[2]
                         else:
