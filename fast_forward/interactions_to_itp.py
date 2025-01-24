@@ -1,16 +1,3 @@
-# Copyright 2024 University of Groningen
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#    http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 
 from vermouth.gmx.itp import write_molecule_itp
 from vermouth import Molecule
@@ -24,18 +11,19 @@ def itp_writer(molname, block, interactions_dict, command_used):
     defaults = {'bonds': 1, 'angles': 2, 'dihedrals': 1, 'constraints': 1,
                 'virtual_sitesn': 1, 'virtual_sites3': 2}
     vermouth_interactions = {}
-    for key in interactions_dict.keys():
-        l = []
-        for _, value in interactions_dict[key].items():
-            b = [i for j in value[1] for i in j]
+    for interaction_type in interactions_dict.keys():
+        finalised_interactions = []
+        for _, value in interactions_dict[interaction_type].items():
+            interaction_params, interaction_atoms = value
+            b = [i for j in interaction_atoms for i in j]
 
             # need this to add multiplicity default to dihedrals
-            if key == 'dihedrals':
-                c = [x for xs in [[defaults[key]], value[0], [1]] for x in xs]
+            if interaction_type == 'dihedrals':
+                c = [x for xs in [[defaults[interaction_type]], interaction_params, [1]] for x in xs]
             else:
-                c = [x for xs in [[defaults[key]], value[0]] for x in xs]
-            l.append((b, c))
-        vermouth_interactions[key] = l
+                c = [x for xs in [[defaults[interaction_type]], interaction_params] for x in xs]
+            finalised_interactions.append((b, c))
+        vermouth_interactions[interaction_type] = finalised_interactions
 
     # add the interactions
     for interaction_type in vermouth_interactions.keys():

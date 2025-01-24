@@ -13,6 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """
 Main exe for computing interactions.
 """
@@ -43,12 +44,10 @@ def __main__():
     parser.add_argument('-n', type=str, dest="ndx_file", help="index file")
     parser.add_argument('-pref', type=str, dest="prefix", help="common prefix to filename", default="")
     parser.add_argument('-i', type=str, dest="itp_files", help="itp file", nargs='*')
-    # parser.add_argument('-b', type=pathlib.Path, dest="bond_file", help="file containing bonds")
     parser.add_argument('-plots', default=False, action="store_true",
                         dest="plots", help="save the fits of bonded interactions")
     parser.add_argument('-plot-data', default=False, action="store_true",
                         dest="plot_data", help="save a pickle file containing the input data for the plots")
-    # parser.add_argument('-name', default='mol', dest="molname", help="name of mapped molecule")
     parser.add_argument('-constraints', dest='constraint_convert', default=10000, type=int,
                         help="force constant above which to convert bonds to constraints")
     parser.add_argument('-precision', dest='precision', default=3, type=int,
