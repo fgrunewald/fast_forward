@@ -1,0 +1,65 @@
+import argparse
+import pathlib
+import networkx as nx
+import cgsmiles
+import vermouth
+from vermouth.gmx.itp import write_molecule_itp
+from vermouth.forcefield import ForceField
+from vermouth.processors.do_links import _build_link_interaction_from
+from fast_forward.ff_template import read_ff_template
+from fast_forward.graph_utils import node_match
+
+def __main__():
+
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter,)
+    parser.add_argument('-sketch', type=pathlib.Path, dest="input_file", help="input file")
+    parser.add_argument('-name', type=pathlib.Path, dest="molname", help="name of molecule")
+    parser.add_argument('-cgs', type=str, dest="cgsmiles_str", help="cgsmiles")
+
+    args = parser.parse_args()
+
+    # read the template file
+    ff = ForceField("new")
+    with open(args.input_file, "r") as _file:
+        lines = _file.readlines()
+
+    read_ff_template(lines, ff)
+
+    # read the molecule definition 
+#    elements = re.findall(r"\{[^\}]+\}", cgsmiles_str)
+    print(args.cgsmiles_str,)
+    _, mol_graph = cgsmiles.MoleculeResolver.from_string(args.cgsmiles_str, last_all_atom=False).resolve_all() 
+    for node in mol_graph.nodes:
+        mol_graph.nodes[node]['resname'] = mol_graph.nodes[node]['fragname']
+        mol_graph.nodes[node]['resid'] = mol_graph.nodes[node]['fragid'][0]
+
+    molecule = vermouth.Molecule(mol_graph, force_field=ff, nrexcl=1)
+    for block in ff.blocks.values():
+        GM = nx.isomorphism.GraphMatcher(molecule,
+                                         block,
+                                         node_match=node_match)
+        for match in GM.subgraph_isomorphisms_iter():
+            for target, origin in match.items():
+                 resid = molecule.nodes[target]["resid"]
+                 molecule.nodes[target].update(block.nodes[origin])
+                 molecule.nodes[target]["resid"] = resid
+            mapping = {origin: target for target, origin in match.items()}
+            for inter_type in block.interactions:
+                for inter in block.interactions[inter_type]:
+                    new_interaction = _build_link_interaction_from(molecule, 
+                                                                   inter,
+                                                                   mapping)
+                    molecule.interactions[inter_type].append(new_interaction)
+
+    # apply the template links
+    vermouth.processors.DoLinks().run_molecule(molecule)
+
+    header = ['initial itp generation done by Fast-Forward. Please cite:',
+              'https://zenodo.org/badge/latestdoi/327071500']
+
+    print(molecule.interactions)
+    # write the output 
+    with open(f'{args.molname}.itp', 'w') as fout:
+        write_molecule_itp(molecule, fout, moltype=args.molname, header=header)
+
+__main__()
