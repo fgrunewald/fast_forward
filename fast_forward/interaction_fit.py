@@ -74,8 +74,8 @@ def interaction_fitter(data, interaction, precision=3, T=310):
 
     if interaction in ['angles', 'dihedrals']:
         pars = create_params(amplitude=dict(value=y.mean(), min=0),
-                             center=dict(value=x.mean(), min=x.mean() - 20, max=x.mean() + 20),
-                             sigma=dict(value=x.std(), min=x.std() / 2, max=x.std() * 1.5)
+                             center=dict(value=x[y.argmax()], min=x[y.argmax()] - 20, max=x[y.argmax()] + 20),
+                             sigma=dict(value=x.std(), min=x.std() / 4, max=x.std() * 1.5)
                              )
     else:
         pars = mod.guess(y, x=x)
