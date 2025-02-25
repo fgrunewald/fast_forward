@@ -40,10 +40,11 @@ def itp_writer(molname, block, interactions_dict, command_used):
                 comment = '_'.join([block.nodes[i]['atomname'] for i in interaction[0]])
 
                 block.remove_interaction('bonds', interaction[0])
+                block.remove_interaction('constraints', interaction[0])
 
-                block.add_interaction(interaction_type, interaction[0], interaction[1][:2],
+                block.add_interaction(interaction_type, [int(i) for i in interaction[0]], interaction[1][:2],
                                     meta={"ifndef": "FLEXIBLE", "comment": comment})
-                block.add_interaction('bonds', interaction[0], interaction[1][:2] + ['10000'],
+                block.add_interaction('bonds', [int(i) for i in interaction[0]], interaction[1][:2] + ['10000'],
                                     meta={"ifdef": "FLEXIBLE", "comment": comment})
 
     header = ['This file was generated using the following command:',
