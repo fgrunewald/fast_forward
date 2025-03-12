@@ -14,6 +14,7 @@
 from vermouth.gmx.itp_read import ITPDirector
 from vermouth.parser_utils import split_comments
 from vermouth.molecule import Interaction
+import numpy as np
 
 class FastForwardITPParser(ITPDirector):
     '''
@@ -94,3 +95,29 @@ class FastForwardITPParser(ITPDirector):
 def read_itp(lines, force_field):
     director = FastForwardITPParser(force_field)
     return list(director.parse(iter(lines)))
+
+
+def guess_interactions(block):
+    """
+    From the bonds described in a block's interactions, generate all possible angles and dihedrals.
+    -----
+    block: :class:`vermouth.molecule.Block`
+    """
+
+    block.make_edges_from_interactions()
+    all_angles = [sorted(i) for i in block.guess_angles()]
+    unique_angles = sorted([list(x) for x in set(tuple(x) for x in all_angles)])
+
+    all_dihedrals = [sorted(i) for i in block.guess_dihedrals()]
+    unique_dihedrals = sorted([list(x) for x in set(tuple(x) for x in all_dihedrals)])
+
+    # add dummy interactions to block if they're not already there.
+    for i in unique_angles:
+        if i not in [[int(j) for j in k.atoms] for k in block.interactions['angles']]:
+            block.add_interaction('angles', atoms=i,
+                                  parameters=['2', '10', '10'], meta={'version': 0})
+    for i in unique_dihedrals:
+        if i not in [[int(j) for j in k.atoms] for k in block.interactions['dihedrals']]:
+            block.add_interaction('dihedrals', atoms=i,
+                                  parameters=['1', '10', '1', '1'], meta={'version': 0})
+

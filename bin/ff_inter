@@ -25,7 +25,7 @@ import vermouth.forcefield
 import sys
 import fast_forward
 from fast_forward.itp_to_ag import itp_to_ag
-from fast_forward.itp_parser_sub import read_itp
+from fast_forward.itp_parser_sub import read_itp, guess_interactions
 from collections import defaultdict
 from fast_forward.bonded_file_parser import read_bonds
 from fast_forward.virtual_site_calculator import vs_handler, mass_redistribution
@@ -72,6 +72,7 @@ def __main__():
         # loop over molecules
         for molname, block in ff.blocks.items():
             interactions_dict = defaultdict(dict)
+            guess_interactions(block)
             interaction_groups = itp_to_ag(block, molname, u)
             for inter_type in ['bonds', 'angles', 'dihedrals']:
                 for group_name, pair_idxs in interaction_groups[inter_type].items():
