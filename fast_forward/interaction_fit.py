@@ -4,8 +4,7 @@ import numpy as np
 from lmfit.models import GaussianModel
 import matplotlib.pyplot as plt
 from MDAnalysis.units import constants
-from lmfit import create_params
-from scipy import fft
+import lmfit
 from .interaction import Interaction
 
 
@@ -39,7 +38,8 @@ def make_distribution_plot(x, y, out, atom_list, interaction):
     fig.savefig(atom_list + f'_{interaction}.png')
     plt.close(fig)
 
-def _bonds_fitter(initial_center, initial_sigma, atoms, precision, R, T, convert_constraints=10000):
+def _bonds_fitter(initial_center, initial_sigma, atoms, precision, R, T, group_name, convert_constraints=10000,
+                  ):
     # need this here because mdanalysis read gromacs coords in angstroms but need in nm.
     center = f'{np.round(initial_center / 10, precision):.{precision}f}'
     sigma = np.round((R * T) / ((initial_sigma / 10) ** 2), -1)
@@ -47,14 +47,16 @@ def _bonds_fitter(initial_center, initial_sigma, atoms, precision, R, T, convert
 
     if sigma < convert_constraints:
         return Interaction(name='bonds', func_type=1,
-                           location=center, force_constant=sigma, atoms=atoms[0])
+                           location=center, force_constant=sigma, atoms=atoms[0],
+                           meta={"comment": group_name})
     else:
         return Interaction(name='constraints', func_type=1,
                            location=center, atoms=atoms[0],
-                           meta={"ifndef": "FLEXIBLE"})
+                           meta={"ifndef": "FLEXIBLE", "comment": group_name})
 
 
-def _angles_fitter(initial_center, initial_sigma, atoms, precision, R, T, convert_constraints=None):
+def _angles_fitter(initial_center, initial_sigma, atoms, precision, R, T, group_name, convert_constraints=None,
+                   ):
     '''
     putting constraint converter here for ease of use below, but obviously has no function
     '''
@@ -64,35 +66,79 @@ def _angles_fitter(initial_center, initial_sigma, atoms, precision, R, T, conver
     sigma = np.round((R * T) / (sin_term * var), 2)
     # return center, sigma
     return Interaction(name='angles', func_type=2,
-                       location=center, force_constant=sigma, atoms=atoms[0])
+                       location=center, force_constant=sigma, atoms=atoms[0],
+                       meta={"comment": group_name})
 
-def _dihedrals_fitter(data, atoms,  n_lim = 10):
+# Fitting function for proper dihedrals
+def model_function(params, x):
+    """Computes the sum of cosines with the given parameters."""
+    y = np.zeros_like(x)
+    num_terms = len(params) // 3  # Each term has k, n, x0
+    for i in range(num_terms):
+        k = params[f'k{i}']
+        n = int(params[f'n{i}'].value)  # Force n to be an integer
+        x0 = params[f'x0_{i}']
+        y += k * (1 + np.cos(n * x - x0))
+    return y
 
-    signal = data.T[1]
-    N = len(signal)
-    # x = np.arange(N)
+# Residual function for lmfit
+def residuals(params, x, data):
+    return model_function(params, x) - data
 
-    inters = []
-    n = n_lim
-    res = fft.dct(signal, norm='ortho')
-    res[n:] = 0
+def _dihedrals_fitter(data, atoms,  group_name, max_terms = 10):
 
-    # reconstructed = np.zeros_like(x, dtype=float)
-    for m in range(n):
-        C_m = np.sqrt(1 / N) if m == 0 else np.sqrt(2 / N)
-        k_m = res[m] * C_m
-        n_m = m / 2  # * (np.pi/(2*np.pi/N))
-        # reconstructed += k_m * (1 + np.cos(n_m * np.deg2rad(x)))
-        inters.append(Interaction(name='dihedrals',
-                                  func_type=9,
-                                  location=0,
-                                  force_constant=-k_m,  # has to be -k_m to give _potential_ not _distribution_
-                                  multiplicity=n_m, atoms=atoms[0]))
-        print(inters[-1].parameters)
+    x = data.T[0]
+    y = data.T[1]
 
-    return inters
+    # Iterate over different numbers of terms to find the optimal one
+    best_aic = np.inf
+    # best_model = None
+    best_params = None
+    aic_values = []
 
-def interaction_fitter(data, interaction, atoms, precision=3, convert_constraints=10000, T=310):
+    for num_terms in range(1, max_terms + 1):
+        params = lmfit.Parameters()
+        for i in range(num_terms):
+            params.add(f'k{i}', value=1.0)  # Initial guess
+            params.add(f'n{i}', value=i, vary=False)  # Fixed integer frequency
+            params.add(f'x0_{i}', value=0.0, min=-np.pi, max=np.pi)  # Phase shift
+
+        # Perform fitting
+        minimizer = lmfit.Minimizer(residuals, params, fcn_args=(x, y))
+        result = minimizer.minimize()
+
+        # Compute AIC (lower is better)
+        aic = result.aic
+        aic_values.append(aic)
+
+        # Keep track of the best model
+        if aic < best_aic:
+            best_aic = aic
+            # best_model = result
+            best_params = result.params
+
+    num_terms = len(best_params) // 3  # Each term has k, n, and x0
+
+    factor = 1e3 # useful to scale the potential slightly
+    pars_out = []
+    for i in range(num_terms):
+        k = -best_params[f'k{i}'].value * factor# make k negative to convert from distribution to potential
+        x0 = best_params[f'x0_{i}'].value
+        x0_deg = np.degrees(x0)  # Convert x0 from radians to degrees
+        n = int(best_params[f'n{i}'].value)  # Ensure n is integer
+
+        pars_out.append(Interaction(name='dihedrals',
+                                    atoms=atoms[0], # contained in a list for some reason
+                                    func_type=9,
+                                    location=np.round(x0_deg,2),
+                                    force_constant=np.round(k, 3),
+                                    multiplicity=int(n),
+                                    meta={"comment": group_name}
+                                    ))
+    return pars_out
+
+def interaction_fitter(data, interaction, atoms, group_name,
+                       precision=3, convert_constraints=10000, T=310):
 
     R = constants['Boltzmann_constant']
 
@@ -104,10 +150,10 @@ def interaction_fitter(data, interaction, atoms, precision=3, convert_constraint
         mod = GaussianModel()
 
         if interaction in ['angles']:
-            pars = create_params(amplitude=dict(value=y.mean(), min=0),
-                                 center=dict(value=x[y.argmax()], min=x[y.argmax()] - 20, max=x[y.argmax()] + 20),
-                                 sigma=dict(value=x.std(), min=x.std() / 4, max=x.std() * 1.5)
-                                 )
+            pars = lmfit.create_params(amplitude=dict(value=y.mean(), min=0),
+                                       center=dict(value=x[y.argmax()], min=x[y.argmax()] - 20, max=x[y.argmax()] + 20),
+                                       sigma=dict(value=x.std(), min=x.std() / 4, max=x.std() * 1.5)
+                                       )
         else:
             pars = mod.guess(y, x=x)
 
@@ -121,10 +167,10 @@ def interaction_fitter(data, interaction, atoms, precision=3, convert_constraint
                      'angles': _angles_fitter,
                      }
 
-        inter = func_dict[interaction](center, sigma, atoms, precision, R, T, convert_constraints)
+        inter = func_dict[interaction](center, sigma, atoms, precision, R, T, group_name, convert_constraints)
 
     else:
-        inter = _dihedrals_fitter(data, atoms)
+        inter = _dihedrals_fitter(data, atoms, group_name)
 
     return inter
 

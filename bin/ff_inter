@@ -86,7 +86,9 @@ def __main__():
                     distr = interaction_distribution(u, inter_type, pair_idxs, group_name, args.prefix)
 
                     # fit the distributions for the interaction
-                    inter = interaction_fitter(distr, inter_type, pair_idxs, args.precision, args.constraint_convert)
+                    inter = interaction_fitter(distr, inter_type, pair_idxs, group_name,
+                                               args.precision, args.constraint_convert,
+                                               )
                     # add interaction(s) to interactions, may be a list if dihedral
                     if type(inter) == list:
                         interactions.interactions.extend(inter)

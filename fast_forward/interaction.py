@@ -11,9 +11,9 @@ class Interaction():
         self.func_type = func_type
         self.location = location
         self.force_constant = force_constant
-        self.multiplicity = float(multiplicity) if multiplicity else multiplicity
+        self.multiplicity = int(multiplicity) if multiplicity else multiplicity
         self.meta = meta
-
+        # put parameters together coherently depending on what we have
         self.parameters = self.make_parameters()
 
     def make_parameters(self):
@@ -24,8 +24,3 @@ class InteractionHolder():
     def __init__(self):
         self.interactions = []
 
-    # def finalise_interactions_list(self):
-        # flattened_interactions_list = [i for j in self.interactions for i in j]
-        # self.interactions = flattened_interactions_list
-        # for i in self.interactions:
-        #     print(i)
