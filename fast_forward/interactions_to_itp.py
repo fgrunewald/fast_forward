@@ -17,7 +17,7 @@ def itp_writer(molname, block, interactions, command_used, overwrite):
 
     header = ['This file was generated using the following command:',
               command_used, '\n',
-              'initial itp generation done by Fast-Forward. Please cite:',
+              'itp generation done by Fast-Forward. Please cite:',
               'https://zenodo.org/badge/latestdoi/327071500']
 
     # make the block a molecule for writing
