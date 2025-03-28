@@ -115,9 +115,9 @@ def guess_interactions(block):
     for i in unique_angles:
         if i not in [[int(j) for j in k.atoms] for k in block.interactions['angles']]:
             block.add_interaction('angles', atoms=i,
-                                  parameters=['2', '10', '10'], meta={'version': 0})
+                                  parameters=['2', '10', '10'], meta={'version': 0, 'comment': 'placeholder'})
     for i in unique_dihedrals:
         if i not in [[int(j) for j in k.atoms] for k in block.interactions['dihedrals']]:
             block.add_interaction('dihedrals', atoms=i,
-                                  parameters=['1', '10', '1', '1'], meta={'version': 0})
+                                  parameters=['1', '10', '1', '1'], meta={'version': 0, 'comment': 'placeholder'})
 

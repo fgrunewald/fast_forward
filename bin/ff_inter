@@ -34,6 +34,8 @@ from fast_forward.interactions_to_itp import itp_writer
 from fast_forward.interaction_distribution import interaction_distribution
 from fast_forward.interaction_plots import make_distribution_plot
 from vermouth.file_writer import DeferredFileWriter
+from fast_forward.interaction import InteractionHolder
+from copy import deepcopy
 
 VERSION = 'fast_forward version {}'.format(fast_forward.__version__)
 
@@ -52,6 +54,8 @@ def __main__():
                         help="force constant above which to convert bonds to constraints")
     parser.add_argument('-precision', dest='precision', default=3, type=int,
                         help='precision of variables written to itp')
+    parser.add_argument('-no-overwrite', dest='no_overwrite', default=False,
+                        action='store_true', help="don't overwrite existing interactions in itp")
 
     args = parser.parse_args()
 
@@ -69,29 +73,34 @@ def __main__():
                 lines = _file.readlines()
         read_itp(lines, ff)
 
+        ff_editable = deepcopy(ff)
+
         # loop over molecules
         for molname, block in ff.blocks.items():
-            interactions_dict = defaultdict(dict)
-            guess_interactions(block)
+            interactions = InteractionHolder()
+            if not args.no_overwrite:
+                guess_interactions(block)
             interaction_groups = itp_to_ag(block, molname, u)
             for inter_type in ['bonds', 'angles', 'dihedrals']:
                 for group_name, pair_idxs in interaction_groups[inter_type].items():
                     distr = interaction_distribution(u, inter_type, pair_idxs, group_name, args.prefix)
 
                     # fit the distributions for the interaction
-                    value, sigma, fit_result = interaction_fitter(distr, inter_type, args.precision)
-
-                    if args.plots:
-                        make_distribution_plot(distr, fit_result, group_name, inter_type, args.plot_data)
-
-                    # check bonds if they should become constraints
-                    if (inter_type == "bonds") and sigma > args.constraint_convert:
-                        interactions_dict["constraints"][group_name] = [value, sigma], pair_idxs
+                    inter = interaction_fitter(distr, inter_type, pair_idxs, args.precision, args.constraint_convert)
+                    # add interaction(s) to interactions, may be a list if dihedral
+                    if type(inter) == list:
+                        interactions.interactions.extend(inter)
                     else:
-                        interactions_dict[inter_type][group_name] = [value, sigma], pair_idxs
+                        interactions.interactions.extend([inter])
 
-            itp_writer(molname, block, interactions_dict, command_used=' '.join(sys.argv))
-
+            # for i in interactions.interactions:
+            #     print(i.parameters)
+    #                 if args.plots:
+    #                     make_distribution_plot(distr, fit_result, group_name, inter_type, args.plot_data)
+    #
+            itp_writer(molname, ff_editable.blocks[molname], interactions, command_used=' '.join(sys.argv),
+                       overwrite=args.no_overwrite)
+    #
     DeferredFileWriter().write()
 
 __main__()
