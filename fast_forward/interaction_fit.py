@@ -63,16 +63,18 @@ def model_function(params, x):
 def residuals(params, x, data):
     return model_function(params, x) - data
 
-def _dihedrals_fitter(data, atoms,  group_name, max_terms = 10):
-
-    #TODO try fitting a gaussian first in case we have an improper not proper
+def _dihedrals_fitter(data, atoms,  group_name, R, T, max_terms = 10):
 
     x = np.linspace(-np.pi, np.pi, 360)
     y = data.T[1]
 
+    # make a first try at fitting a gaussian to the data in case we have an improper dihedral
+    gaussian = GaussianModel()
+    gaussian.guess(y, x=x)
+    gaussian_result = gaussian.fit(y, x=x)
+
     # Iterate over different numbers of terms to find the optimal one
     best_aic = np.inf
-    # best_model = None
     best_params = None
     aic_values = []
 
@@ -94,27 +96,39 @@ def _dihedrals_fitter(data, atoms,  group_name, max_terms = 10):
         # Keep track of the best model
         if aic < best_aic:
             best_aic = aic
-            # best_model = result
             best_params = result.params
 
     num_terms = len(best_params) // 3  # Each term has k, n, and x0
 
-    factor = 1e2 # useful to scale the potential slightly
-    pars_out = []
-    for i in range(num_terms):
-        k = -best_params[f'k{i}'].value * factor# make k negative to convert from distribution to potential
-        x0 = best_params[f'x0_{i}'].value
-        x0_deg = np.degrees(x0)  # Convert x0 from radians to degrees
-        n = int(best_params[f'n{i}'].value)  # Ensure n is integer
-        pars_out.append(Interaction(name='dihedrals',
-                                    atoms=atoms[0], # contained in a list for some reason
-                                    func_type=9,
-                                    location=np.round(x0_deg,2),
-                                    force_constant=np.round(k, 3),
-                                    multiplicity=int(n),
-                                    meta={"comment": group_name},
-                                    fit_data=[-k/factor, x0_deg, n]
-                                    ))
+    # compare the aic values to determine which type of dihedral we have
+    if best_aic < gaussian_result.aic:
+        factor = 1#e2 # useful to scale the potential slightly
+        pars_out = []
+        for i in range(num_terms):
+            k = -best_params[f'k{i}'].value * factor# make k negative to convert from distribution to potential
+            x0 = best_params[f'x0_{i}'].value
+            x0_deg = np.degrees(x0)  # Convert x0 from radians to degrees
+            n = int(best_params[f'n{i}'].value)  # Ensure n is integer
+            pars_out.append(Interaction(name='dihedrals',
+                                        atoms=atoms[0], # contained in a list for some reason
+                                        func_type=9,
+                                        location=np.round(x0_deg,2),
+                                        force_constant=np.round(k, 6),
+                                        multiplicity=int(n),
+                                        meta={"comment": group_name},
+                                        fit_data=[-k/factor, x0_deg, n]
+                                        ))
+    else:
+        pars_out = Interaction(name='dihedrals',
+                               atoms=atoms[0],
+                               func_type=2,
+                               location=np.round(np.degrees(gaussian_result.params['center']), 0),
+                               force_constant=np.round((R * T) / ((gaussian_result.params['sigma']) ** 2), 0),
+                               meta={"comment": group_name},
+                               fit_data=[gaussian_result.params['amplitude'],
+                                         gaussian_result.params['center'],
+                                         gaussian_result.params['sigma']]
+                               )
 
     return pars_out
 
@@ -173,7 +187,7 @@ def interaction_fitter(data, interaction, atoms, group_name,
         inter = func_dict[interaction](center, sigma, atoms, precision, R, T, group_name, convert_constraints)
 
     else:
-        inter = _dihedrals_fitter(data, atoms, group_name)
+        inter = _dihedrals_fitter(data, atoms, group_name, R, T)
 
     return inter
 

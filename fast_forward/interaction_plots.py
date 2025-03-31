@@ -102,7 +102,7 @@ def _angles_plot(data, interaction, atom_list, plot_data=False):
     fig.savefig(f'angle_{atom_list}.png')
     plt.close(fig)
 
-def _dihedrals_plot(data, interaction, atom_list, plot_data=False):
+def _proper_dihedrals_plot(data, interaction, atom_list, plot_data=False):
     x = np.linspace(-np.pi, np.pi, 360)
     y = data.T[1]
     y_fitted = np.zeros_like(x)
@@ -136,6 +136,42 @@ def _dihedrals_plot(data, interaction, atom_list, plot_data=False):
     fig.savefig(f'dihedral_{atom_list}.png')
     plt.close(fig)
 
+def _improper_dihedrals_plot(data, interaction, atom_list, plot_data=False):
+    x = np.linspace(-np.pi, np.pi, 360)
+    y = data.T[1]
+
+    mod = GaussianModel(x=x)
+    pars = Parameters()
+
+    pars.add("amplitude", interaction.fit_data[0])
+    pars.add("center", interaction.fit_data[1])
+    pars.add("sigma", interaction.fit_data[2])
+    fitted_distribution = mod.eval(pars, x=x)
+
+    fig, ax = plt.subplots()
+
+    ax.plot(np.degrees(x), y, c='#6970E0', label='Distribution')
+    ax.plot(np.degrees(x), fitted_distribution, c='#E06B69', label='Fit')
+
+    curr_lims = ax.get_ylim()
+    # ax.set_ylim(0, curr_lims[1] + (curr_lims[1] * 0.1))
+    ax.set_xlim(-180, 180)
+
+    ax.legend()
+    ax.set_title(atom_list)
+    ax.set_xlabel('Angle')
+
+    if plot_data:
+        data_out = {ax.get_xlabel(): x,
+                    'simulated_distribution': y,
+                    'fitted_distribution': fitted_distribution,
+                    }
+        pickle.dump(data_out, open(f'dihedral_{atom_list}.p', 'wb'))
+
+    fig.savefig(f'dihedral_{atom_list}.png')
+    plt.close(fig)
+
+
 def make_distribution_plot(data, interaction, atom_list, interaction_type, plot_data=False):
 
     if interaction_type in ['bonds', 'constraints']:
@@ -143,4 +179,8 @@ def make_distribution_plot(data, interaction, atom_list, interaction_type, plot_
     elif interaction_type == 'angles':
         _angles_plot(data, interaction, atom_list)
     elif interaction_type == 'dihedrals':
-        _dihedrals_plot(data, interaction, atom_list)
+        if type(interaction) == list:
+            _proper_dihedrals_plot(data, interaction, atom_list)
+        else:
+            _improper_dihedrals_plot(data, interaction, atom_list)
+
