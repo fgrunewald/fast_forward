@@ -43,7 +43,17 @@ def _angles_fitter(initial_center, initial_sigma, atoms, precision, R, T, group_
     var = np.deg2rad(initial_sigma) ** 2
     sigma = np.round((R * T) / (sin_term * var), 2)
 
-    return Interaction(name='angles', func_type=2,
+    # if sigma too big, angles get very unstable.
+    if sigma > 150:
+        sigma = 150
+
+    #empiricaly derived. For theta_0 > 160, significant ptl energy for type 10 at equilibrium, so enforce type 2.
+    if float(center) < 160:
+        func_type_out = 10
+    else:
+        func_type_out = 2
+
+    return Interaction(name='angles', func_type=func_type_out,
                        location=center, force_constant=sigma, atoms=atoms[0],
                        meta={"comment": group_name}, fit_data=[float(center), initial_sigma])
 
@@ -73,6 +83,7 @@ def _dihedrals_fitter(data, atoms,  group_name, R, T, max_terms = 10):
     gaussian.guess(y, x=x)
     gaussian_result = gaussian.fit(y, x=x)
 
+    # now do fitting for proper dihedrals
     # Iterate over different numbers of terms to find the optimal one
     best_aic = np.inf
     best_params = None
@@ -123,6 +134,7 @@ def _dihedrals_fitter(data, atoms,  group_name, R, T, max_terms = 10):
                                atoms=atoms[0],
                                func_type=2,
                                location=np.round(np.degrees(gaussian_result.params['center']), 0),
+                               # need the gaussian scaling as before
                                force_constant=np.round((R * T) / ((gaussian_result.params['sigma']) ** 2), 0),
                                meta={"comment": group_name},
                                fit_data=[gaussian_result.params['amplitude'],
