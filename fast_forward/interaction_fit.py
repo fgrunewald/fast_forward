@@ -51,7 +51,7 @@ def _angles_fitter(initial_center, initial_sigma, atoms, precision, R, T, group_
     if float(center) < 160:
         func_type_out = 10
     else:
-        func_type_out = 2
+        func_type_out = 1
 
     return Interaction(name='angles', func_type=func_type_out,
                        location=center, force_constant=sigma, atoms=atoms[0],
@@ -62,7 +62,7 @@ def model_function(params, x):
     """Computes the sum of cosines with the given parameters."""
     y = np.zeros_like(x)
     num_terms = len(params) // 3  # Each term has k, n, x0
-    for i in range(num_terms):
+    for i in range(1,num_terms):
         k = params[f'k{i}']
         n = int(params[f'n{i}'].value)  # Force n to be an integer
         x0 = params[f'x0_{i}']
@@ -113,9 +113,9 @@ def _dihedrals_fitter(data, atoms,  group_name, R, T, max_terms = 10):
 
     # compare the aic values to determine which type of dihedral we have
     if best_aic < gaussian_result.aic:
-        factor = 1#e2 # useful to scale the potential slightly
+        factor = 1e3 # useful to scale the potential slightly
         pars_out = []
-        for i in range(num_terms):
+        for i in range(1,num_terms):
             k = -best_params[f'k{i}'].value * factor# make k negative to convert from distribution to potential
             x0 = best_params[f'x0_{i}'].value
             x0_deg = np.degrees(x0)  # Convert x0 from radians to degrees
@@ -124,9 +124,9 @@ def _dihedrals_fitter(data, atoms,  group_name, R, T, max_terms = 10):
                                         atoms=atoms[0], # contained in a list for some reason
                                         func_type=9,
                                         location=np.round(x0_deg,2),
-                                        force_constant=np.round(k, 6),
+                                        force_constant=np.round(k, 2),
                                         multiplicity=int(n),
-                                        meta={"comment": group_name},
+                                        meta={"comment": group_name, "group": group_name},
                                         fit_data=[-k/factor, x0_deg, n]
                                         ))
     else:
