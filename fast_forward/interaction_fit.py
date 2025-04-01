@@ -73,14 +73,17 @@ def model_function(params, x):
 def residuals(params, x, data):
     return model_function(params, x) - data
 
-def _dihedrals_fitter(data, atoms,  group_name, R, T, max_terms = 10):
+def _dihedrals_fitter(data, atoms,  group_name, R, T, max_terms):
 
     x = np.linspace(-np.pi, np.pi, 360)
     y = data.T[1]
 
     # make a first try at fitting a gaussian to the data in case we have an improper dihedral
     gaussian = GaussianModel()
-    gaussian.guess(y, x=x)
+    # gaussian.guess(y, x=x)
+    gaussian.make_params(center=dict(value=x[y.argmax()]),
+                         sigma=dict(value=15, min=0, max=np.pi),
+                         amplitude=dict(value=y.max()))
     gaussian_result = gaussian.fit(y, x=x)
 
     # now do fitting for proper dihedrals
@@ -110,7 +113,7 @@ def _dihedrals_fitter(data, atoms,  group_name, R, T, max_terms = 10):
             best_params = result.params
 
     num_terms = len(best_params) // 3  # Each term has k, n, and x0
-
+    print(group_name, atoms, best_aic, gaussian_result.aic)
     # compare the aic values to determine which type of dihedral we have
     if best_aic < gaussian_result.aic:
         factor = 1e3 # useful to scale the potential slightly
@@ -145,7 +148,7 @@ def _dihedrals_fitter(data, atoms,  group_name, R, T, max_terms = 10):
     return pars_out
 
 def interaction_fitter(data, interaction, atoms, group_name,
-                       precision=3, convert_constraints=10000, T=310):
+                       precision, convert_constraints, max_dihedral, T=310):
     '''
     Entry function for interaction fitting
     Parameters
@@ -162,6 +165,8 @@ def interaction_fitter(data, interaction, atoms, group_name,
         number of deci
     convert_constraints: int
         force constant above which to convert bond to constraint
+    max_dihedral: int
+        maximum multiplicity of dihedral to fit during dihedral fitting
     T: int
         temperature of boltzmann inversion
 
@@ -199,7 +204,7 @@ def interaction_fitter(data, interaction, atoms, group_name,
         inter = func_dict[interaction](center, sigma, atoms, precision, R, T, group_name, convert_constraints)
 
     else:
-        inter = _dihedrals_fitter(data, atoms, group_name, R, T)
+        inter = _dihedrals_fitter(data, atoms, group_name, R, T, max_dihedral)
 
     return inter
 
