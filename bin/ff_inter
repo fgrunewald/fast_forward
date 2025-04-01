@@ -54,8 +54,6 @@ def __main__():
                         help="force constant above which to convert bonds to constraints")
     parser.add_argument('-precision', dest='precision', default=3, type=int,
                         help='precision of variables written to itp')
-    parser.add_argument('-no-overwrite', dest='no_overwrite', default=False,
-                        action='store_true', help="don't overwrite existing interactions in itp")
 
     args = parser.parse_args()
 
@@ -78,8 +76,7 @@ def __main__():
         # loop over molecules
         for molname, block in ff.blocks.items():
             interactions = InteractionHolder()
-            if not args.no_overwrite:
-                guess_interactions(block)
+            guess_interactions(block)
             interaction_groups = itp_to_ag(block, molname, u)
             for inter_type in ['bonds', 'angles', 'dihedrals']:
                 for group_name, pair_idxs in interaction_groups[inter_type].items():
