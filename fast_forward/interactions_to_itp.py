@@ -2,7 +2,7 @@
 from vermouth.gmx.itp import write_molecule_itp
 from vermouth.file_writer import deferred_open
 
-def itp_writer(molname, block, interactions, command_used, overwrite):
+def itp_writer(molname, block, interactions, command_used):
 
     # remove all interactions present
     for interaction_type in list(block.interactions):

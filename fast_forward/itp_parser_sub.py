@@ -96,6 +96,25 @@ def read_itp(lines, force_field):
     director = FastForwardITPParser(force_field)
     return list(director.parse(iter(lines)))
 
+def _matching_angles(angles):
+    '''
+
+    for a list of tuples that may contain integers in reversed order, return only one entry.
+
+    e.g. for [(0,1,2),(1,2,3),(2,1,0)] we get [(0,1,2),(1,2,3)]
+
+    '''
+
+    seen = set()
+    unique_list = []
+
+    for tup in angles:
+        sorted_tup = tuple(sorted(tup))  # Sort to ensure order-independent uniqueness
+        if sorted_tup not in seen:
+            seen.add(sorted_tup)
+            unique_list.append(tup)  # Append the original order
+
+    return unique_list
 
 def guess_interactions(block):
     """
@@ -105,19 +124,17 @@ def guess_interactions(block):
     """
 
     block.make_edges_from_interactions()
-    all_angles = [sorted(i) for i in block.guess_angles()]
-    unique_angles = sorted([list(x) for x in set(tuple(x) for x in all_angles)])
 
-    all_dihedrals = [sorted(i) for i in block.guess_dihedrals()]
-    unique_dihedrals = sorted([list(x) for x in set(tuple(x) for x in all_dihedrals)])
+    angles = _matching_angles(block.guess_angles())
+    dihedrals = _matching_angles(block.guess_dihedrals())
 
     # add dummy interactions to block if they're not already there.
-    for i in unique_angles:
+    for i in angles:
         if i not in [[int(j) for j in k.atoms] for k in block.interactions['angles']]:
             comment = '_'.join([block.nodes[atom]['atomname'] for atom in i])
             block.add_interaction('angles', atoms=i,
                                   parameters=['2', '10', '10'], meta={'version': 0, 'comment': comment})
-    for i in unique_dihedrals:
+    for i in dihedrals:
         if i not in [[int(j) for j in k.atoms] for k in block.interactions['dihedrals']]:
             comment = '_'.join([block.nodes[atom]['atomname'] for atom in i])
             block.add_interaction('dihedrals', atoms=i,

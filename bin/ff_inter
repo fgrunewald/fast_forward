@@ -96,7 +96,7 @@ def __main__():
                         make_distribution_plot(distr, inter, group_name, inter_type, args.plot_data)
 
             itp_writer(molname, ff_editable.blocks[molname], interactions, command_used=' '.join(sys.argv),
-                       overwrite=args.no_overwrite)
+                       )
 
     DeferredFileWriter().write()
 
