@@ -33,6 +33,8 @@ def report(h_score_dict, h_score):
             add(f"\t{interaction_name:20s}: {score:.2f}")
 
     print('\n'.join(buff))
+    with open('report.out', 'w') as fout:
+        fout.writelines('\n'.join(buff))
 
 
 BINS_DICT = {"bonds": np.arange(0, 7, 0.01),
