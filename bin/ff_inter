@@ -27,7 +27,6 @@ import fast_forward
 from fast_forward.itp_to_ag import itp_to_ag
 from fast_forward.itp_parser_sub import read_itp, guess_interactions
 from collections import defaultdict
-from fast_forward.bonded_file_parser import read_bonds
 from fast_forward.virtual_site_calculator import vs_handler, mass_redistribution
 from fast_forward.interaction_fit import interaction_fitter
 from fast_forward.interactions_to_itp import itp_writer
@@ -46,6 +45,8 @@ def __main__():
     parser.add_argument('-n', type=str, dest="ndx_file", help="index file")
     parser.add_argument('-pref', type=str, dest="prefix", help="common prefix to filename", default="")
     parser.add_argument('-i', type=str, dest="itp_files", help="itp file", nargs='*')
+    parser.add_argument('-dists', default=False, action='store_true',
+                        dest="distribution_data", help="save text files with time series and distribution data for interactions")
     parser.add_argument('-plots', default=False, action="store_true",
                         dest="plots", help="save the fits of bonded interactions")
     parser.add_argument('-plot-data', default=False, action="store_true",
@@ -82,7 +83,8 @@ def __main__():
             interaction_groups = itp_to_ag(block, molname, u)
             for inter_type in ['bonds', 'angles', 'dihedrals']:
                 for group_name, pair_idxs in interaction_groups[inter_type].items():
-                    distr = interaction_distribution(u, inter_type, pair_idxs, group_name, args.prefix)
+                    distr = interaction_distribution(u, inter_type, pair_idxs, group_name,
+                                                     args.prefix, args.distribution_data)
 
                     # fit the distributions for the interaction
                     inter = interaction_fitter(distr, inter_type, pair_idxs, group_name,
