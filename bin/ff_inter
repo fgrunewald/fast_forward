@@ -106,7 +106,7 @@ def __main__():
 
             # make plots if we want to
             if args.plots:
-                make_distribution_plot(distributions, fitter.interactions_dict, args.plot_data)
+                make_distribution_plot(fitter.fit_parameters)
 
             # write out the itp
             itp_writer(molname,
