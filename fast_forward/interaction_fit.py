@@ -9,7 +9,6 @@ from lmfit.models import GaussianModel
 from MDAnalysis.units import constants
 import lmfit
 from collections import defaultdict
-# from .interaction import Interaction
 from vermouth.molecule import Interaction
 
 def _gaussian_fitter(x, y, initial_center, initial_sigma, initial_amplitude):
