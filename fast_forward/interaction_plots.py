@@ -71,7 +71,7 @@ def _angles_plot(data, fit_params, atom_list, ax, ):
 
     curr_lims = ax.get_ylim()
     ax.set_ylim(0, curr_lims[1] + (curr_lims[1] * 0.1))
-    ax.set_xlim(-180, 180)
+    ax.set_xlim(0, 180)
 
     ax.axvline(fit_params[0], c='#506155', label=f"Center = {fit_params[0]: .2f}")
     ax.fill_between(np.linspace(fit_params[0] - fit_params[1],
