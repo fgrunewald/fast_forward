@@ -76,8 +76,6 @@ def __main__():
                 lines = _file.readlines()
         read_itp(lines, ff)
 
-        ff_editable = deepcopy(ff)
-
         # loop over molecules
         for molname, block in ff.blocks.items():
             # calculate distributions for interaction
@@ -100,16 +98,21 @@ def __main__():
             for inter_type in ['bonds', 'angles', 'dihedrals']:
                 for group_name, (data, atoms) in distributions[inter_type].items():
                     fitter.fit_interaction(data, atoms, group_name, inter_type)
-                block.interactions[inter_type] = fitter.interactions_dict[inter_type]
+                # block.interactions[inter_type] = fitter.interactions_dict[inter_type]
+
+            # assign each interaction type directly into the block
+            for inter_type, interactions in fitter.interactions_dict.items():
+                block.interactions[inter_type] = interactions
 
             # make plots if we want to
             if args.plots:
                 make_distribution_plot(distributions, fitter.interactions_dict, args.plot_data)
 
             # write out the itp
-            itp_writer(molname, fitter.interactions_dict,
-                       ff_editable.blocks[molname], command_used=' '.join(sys.argv),
+            itp_writer(molname,
+                       ff.blocks[molname], command_used=' '.join(sys.argv),
                        )
+
     # write out using DeferredFileWriter to back up any existing files of the same names
     DeferredFileWriter().write()
 

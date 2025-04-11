@@ -9,7 +9,8 @@ from lmfit.models import GaussianModel
 from MDAnalysis.units import constants
 import lmfit
 from collections import defaultdict
-from .interaction import Interaction
+# from .interaction import Interaction
+from vermouth.molecule import Interaction
 
 def _gaussian_fitter(x, y, initial_center, initial_sigma, initial_amplitude):
     """
@@ -71,6 +72,7 @@ class InteractionFitter:
         self.dihedral_scaling = dihedral_scaling
         # this will store the interactions
         self.interactions_dict = defaultdict(list)
+        self.fit_parameters = defaultdict(dict)
 
     def _bonds_fitter(self, data, atoms, group_name):
         """
@@ -83,9 +85,6 @@ class InteractionFitter:
             indices of the atoms involved in the interaction
         group_name: str
             names of the atoms involved in the interaction joined by a "_"
-
-        Returns
-        -------
 
         """
 
@@ -103,24 +102,38 @@ class InteractionFitter:
         center = np.round(initial_center / 10, self.precision)
         sigma = np.round((self.kb * self.temperature) / ((initial_sigma / 10) ** 2), -1)
 
+        self.fit_parameters['bonds'][group_name] = [center, initial_sigma]
+
         if sigma < self.constraint_converter:
-            return Interaction(name='bonds',
-                               parameters=[1, center, sigma],
-                               atoms=atoms[0],
-                               meta={"comment": group_name},
-                               fit_data=[float(center), initial_sigma])
+            self.interactions_dict['bonds'].append(Interaction(atoms=atoms[0],
+                                                               parameters=[1, center, sigma],
+                                                               meta={"comment": group_name}))
         else:
-            return [Interaction(name='constraints',
-                                parameters=[1, center],
-                                atoms=atoms[0],
-                                meta={"ifndef": "FLEXIBLE", "comment": group_name},
-                                fit_data=[float(center), initial_sigma]),
-                    Interaction(name='bonds',
-                                parameters=[1, center, 10000],
-                                atoms=atoms[0],
-                                meta={"ifdef": "FLEXIBLE", "comment": group_name},
-                                fit_data=[float(center), initial_sigma])
-                    ]
+            self.interactions_dict['bonds'].append(Interaction(atoms=atoms[0],
+                                                               parameters=[1, center, 10000],
+                                                               meta={"ifndef": "FLEXIBLE", "comment": group_name}))
+            self.interactions_dict['constraints'].append(Interaction(atoms=atoms[0],
+                                                                     parameters=[1, center],
+                                                                     meta={"ifdef": "FLEXIBLE", "comment": group_name},))
+
+        #     return Interaction(name='bonds',
+        #                        parameters=[1, center, sigma],
+        #                        atoms=atoms[0],
+        #                        meta={"comment": group_name},
+        #                        fit_data=[float(center), initial_sigma])
+        # else:
+        #     return [Interaction(name='constraints',
+        #                         parameters=[1, center],
+        #                         atoms=atoms[0],
+        #                         meta={"ifndef": "FLEXIBLE", "comment": group_name},
+        #                         fit_data=[float(center), initial_sigma]),
+        #             Interaction(name='bonds',
+        #                         parameters=[1, center, 10000],
+        #                         atoms=atoms[0],
+        #                         meta={"ifdef": "FLEXIBLE", "comment": group_name},
+        #                         fit_data=[float(center), initial_sigma])
+        #             ]
+        # return center, sigma
 
 
     def _angles_fitter(self, data, atoms, group_name,
@@ -135,10 +148,6 @@ class InteractionFitter:
             indices of the atoms involved in the interaction
         group_name: str
             names of the atoms involved in the interaction joined by a "_"
-
-        Returns
-        -------
-        fast_forward.interaction.Interaction
 
         """
         x, y = data.T
@@ -166,10 +175,14 @@ class InteractionFitter:
         else:
             func_type_out = 1
 
-        return Interaction(name='angles',
-                           atoms=atoms[0],
-                           parameters=[func_type_out, center, sigma],
-                           meta={"comment": group_name}, fit_data=[float(center), initial_sigma])
+        self.interactions_dict['angles'].append(Interaction(atoms=atoms[0],
+                                                            parameters=[func_type_out, center, sigma],
+                                                            meta={"comment": group_name}))
+        self.fit_parameters['angles'][group_name] = [center, initial_sigma]
+        # return Interaction(name='angles',
+        #                    atoms=atoms[0],
+        #                    parameters=[func_type_out, center, sigma],
+        #                    meta={"comment": group_name}, fit_data=[float(center), initial_sigma])
 
     # Fitting function for proper dihedrals
     def _proper_dihedral_model_function(self, params, x):
@@ -218,8 +231,6 @@ class InteractionFitter:
         group_name: str
             names of the atoms involved in the interaction joined by a "_"
 
-        Returns
-        -------
 
         '''
 
@@ -269,39 +280,53 @@ class InteractionFitter:
                 x0 = best_params[f'x0_{i}'].value
                 x0_deg = np.degrees(x0)  # Convert x0 from radians to degrees
                 n = int(best_params[f'n{i}'].value)  # Ensure n is integer
-                pars_out.append(Interaction(name='dihedrals',
-                                            atoms=atoms[0], # contained in a list for some reason
-                                            parameters=[9, # function type
-                                                        np.round(x0_deg, self.precision), # center
-                                                        np.round(k, self.precision), # force constant
-                                                        int(n) # multiplicity
-                                                        ],
-                                            meta={"comment": group_name, "group": group_name},
-                                            fit_data=[best_params[f'k{i}'].value, x0_deg, n]
-                                            ))
+                # pars_out.append(Interaction(name='dihedrals',
+                #                             atoms=atoms[0], # contained in a list for some reason
+                #                             parameters=[9, # function type
+                #                                         np.round(x0_deg, self.precision), # center
+                #                                         np.round(k, self.precision), # force constant
+                #                                         int(n) # multiplicity
+                #                                         ],
+                #                             meta={"comment": group_name, "group": group_name},
+                #                             fit_data=[best_params[f'k{i}'].value, x0_deg, n]
+                #                             ))
+                self.interactions_dict['dihedrals'].append(Interaction(atoms=atoms[0],
+                                                                       parameters=[9,  # function type
+                                                                                   np.round(x0_deg, self.precision), # center
+                                                                                   np.round(k, self.precision), # force constant
+                                                                                   int(n) # multiplicity
+                                                                                   ],
+                                                                       meta={"comment": group_name,
+                                                                             "group": group_name}))
+                pars_out.append([best_params[f'k{i}'].value, x0_deg, n])
+            self.fit_parameters['dihedrals'][group_name] = pars_out
 
         else:
             center = np.round(np.degrees(gaussian_result.params['center']), self.precision)
             fc = np.round((self.kb * self.temperature) / ((gaussian_result.params['sigma']) ** 2), self.precision)
-            pars_out = Interaction(name='dihedrals',
-                                   atoms=atoms[0],
-                                   parameters=[2, center, fc],
-                                   meta={"comment": group_name},
-                                   fit_data=[gaussian_result.params['amplitude'],
-                                             gaussian_result.params['center'],
-                                             gaussian_result.params['sigma']]
-                                   )
+            self.interactions_dict['dihedrals'].append(Interaction(atoms=atoms[0],
+                                                                   parameters=[2, center, fc],
+                                                                   meta={"comment": group_name}))
+            self.fit_parameters['dihedrals'][group_name] = [gaussian_result.params['amplitude'],
+                                                            gaussian_result.params['center'],
+                                                            gaussian_result.params['sigma']]
+            # pars_out = Interaction(name='dihedrals',
+            #                        atoms=atoms[0],
+            #                        parameters=[2, center, fc],
+            #                        meta={"comment": group_name},
+            #                        fit_data=[gaussian_result.params['amplitude'],
+            #                                  gaussian_result.params['center'],
+            #                                  gaussian_result.params['sigma']]
+            #                        )
 
-        return pars_out
+        # return pars_out
 
     def fit_interaction(self, data, atoms, group_name, inter_type):
         func_dict = {'bonds': self._bonds_fitter,
                      'angles': self._angles_fitter,
                      'dihedrals': self._dihedrals_fitter
                      }
-
-        inter = func_dict[inter_type](data, atoms, group_name)
-        self.interactions_dict[inter_type].append(inter)
+        func_dict[inter_type](data, atoms, group_name)
 
 
 
