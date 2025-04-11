@@ -103,19 +103,8 @@ class InteractionFitter:
         sigma = np.round((self.kb * self.temperature) / ((initial_sigma / 10) ** 2), -1)
 
         self.fit_parameters['bonds'][group_name] = {'data': data,
+                                                    'distribution_params' : [center, sigma],
                                                     'fit_params':[center, initial_sigma]}
-
-        if sigma < self.constraint_converter:
-            self.interactions_dict['bonds'].append(Interaction(atoms=atoms[0],
-                                                               parameters=[1, center, sigma],
-                                                               meta={"comment": group_name}))
-        else:
-            self.interactions_dict['bonds'].append(Interaction(atoms=atoms[0],
-                                                               parameters=[1, center, 10000],
-                                                               meta={"ifndef": "FLEXIBLE", "comment": group_name}))
-            self.interactions_dict['constraints'].append(Interaction(atoms=atoms[0],
-                                                                     parameters=[1, center],
-                                                                     meta={"ifdef": "FLEXIBLE", "comment": group_name},))
 
     def _angles_fitter(self, data, atoms, group_name,
                        ):
@@ -146,20 +135,8 @@ class InteractionFitter:
         var = np.deg2rad(initial_sigma) ** 2
         sigma = np.round((self.kb * self.temperature) / (sin_term * var), self.precision)
 
-        # if sigma too big, angles get very unstable.
-        if sigma > 150:
-            sigma = 150
-
-        #empiricaly derived. For theta_0 > 160, significant ptl energy for type 10 at equilibrium, so enforce type 1.
-        if float(center) < 160:
-            func_type_out = 10
-        else:
-            func_type_out = 1
-
-        self.interactions_dict['angles'].append(Interaction(atoms=atoms[0],
-                                                            parameters=[func_type_out, center, sigma],
-                                                            meta={"comment": group_name}))
         self.fit_parameters['angles'][group_name] = {'data': data,
+                                                     'distribution_params': [center, sigma],
                                                      'fit_params': [center, initial_sigma]}
 
     # Fitting function for proper dihedrals
@@ -254,33 +231,85 @@ class InteractionFitter:
         if best_aic < gaussian_result.aic:
             pars_out = []
             for i in range(1,num_terms):
-                k = -best_params[f'k{i}'].value * self.dihedral_scaling # make k negative to convert from distribution to potential
                 x0 = best_params[f'x0_{i}'].value
-                x0_deg = np.degrees(x0)  # Convert x0 from radians to degrees
                 n = int(best_params[f'n{i}'].value)  # Ensure n is integer
-
-                self.interactions_dict['dihedrals'].append(Interaction(atoms=atoms[0],
-                                                                       parameters=[9,  # function type
-                                                                                   np.round(x0_deg, self.precision), # center
-                                                                                   np.round(k, self.precision), # force constant
-                                                                                   int(n) # multiplicity
-                                                                                   ],
-                                                                       meta={"comment": group_name,
-                                                                             "group": group_name}))
-                pars_out.append([best_params[f'k{i}'].value, x0_deg, n])
+                pars_out.append([best_params[f'k{i}'].value, x0, n])
             self.fit_parameters['dihedrals'][group_name] = {'data': data,
+                                                            'distribution_params': {i: j for i,j in enumerate(pars_out)},
                                                             'fit_params': pars_out}
 
         else:
             center = np.round(np.degrees(gaussian_result.params['center']), self.precision)
             fc = np.round((self.kb * self.temperature) / ((gaussian_result.params['sigma']) ** 2), self.precision)
-            self.interactions_dict['dihedrals'].append(Interaction(atoms=atoms[0],
-                                                                   parameters=[2, center, fc],
-                                                                   meta={"comment": group_name}))
             self.fit_parameters['dihedrals'][group_name] = {'data': data,
-                                                            'fit_params': [gaussian_result.params['amplitude'],
-                                                                           gaussian_result.params['center'],
-                                                                           gaussian_result.params['sigma']]}
+                                                            'distribution_params': [center, fc],
+                                                            'fit_params': {'amp':gaussian_result.params['amplitude'],
+                                                                           'center':gaussian_result.params['center'],
+                                                                           'sigma': gaussian_result.params['sigma']}}
+
+    def fit_to_gmx(self, inter_type, group_name, atoms):
+
+        if inter_type == 'bonds':
+
+            parameters = self.fit_parameters['bonds'][group_name]['distribution_params']
+            center, sigma = parameters
+
+            if sigma < self.constraint_converter:
+                self.interactions_dict['bonds'].append(Interaction(atoms=atoms[0],
+                                                                   parameters=[1, center, sigma],
+                                                                   meta={"comment": group_name}))
+            else:
+                self.interactions_dict['bonds'].append(Interaction(atoms=atoms[0],
+                                                                   parameters=[1, center, 10000],
+                                                                   meta={"ifndef": "FLEXIBLE", "comment": group_name}))
+                self.interactions_dict['constraints'].append(Interaction(atoms=atoms[0],
+                                                                         parameters=[1, center],
+                                                                         meta={"ifdef": "FLEXIBLE",
+                                                                               "comment": group_name}, ))
+        elif inter_type == 'angles':
+
+            parameters = self.fit_parameters['angles'][group_name]['distribution_params']
+            center, sigma = parameters
+
+            # empirically derived. if sigma too big, angles get very unstable.
+            if sigma > 150:
+                sigma = 150
+
+            # empirically derived. For theta_0 > 160, significant ptl energy for type 10 at equilibrium, so enforce type 1.
+            if float(center) < 160:
+                func_type_out = 10
+            else:
+                func_type_out = 1
+
+            self.interactions_dict['angles'].append(Interaction(atoms=atoms[0],
+                                                                parameters=[func_type_out, center, sigma],
+                                                                meta={"comment": group_name}))
+
+        elif inter_type == 'dihedrals':
+
+            parameters = self.fit_parameters['dihedrals'][group_name]['distribution_params']
+
+            if len(parameters) == 1:
+                center = np.round(np.degrees(parameters['center']), self.precision)
+                fc = np.round((self.kb * self.temperature) / ((parameters['sigma']) ** 2), self.precision)
+                self.interactions_dict['dihedrals'].append(Interaction(atoms=atoms[0],
+                                                                       parameters=[2, center, fc],
+                                                                       meta={"comment": group_name}))
+            else:
+                for i in parameters.values():
+                    k = i[0] * self.dihedral_scaling
+                    x0_deg = np.degrees(i[1])
+                    n = i[2]
+                    self.interactions_dict['dihedrals'].append(Interaction(atoms=atoms[0],
+                                                                           parameters=[9,  # function type
+                                                                                       np.round(x0_deg, self.precision), # center
+                                                                                       np.round(k, self.precision), # force constant
+                                                                                       int(n) # multiplicity
+                                                                                       ],
+                                                                           meta={"comment": group_name,
+                                                                                 "group": group_name}))
+
+
 
 
     def fit_interaction(self, data, atoms, group_name, inter_type):
@@ -289,6 +318,7 @@ class InteractionFitter:
                      'dihedrals': self._dihedrals_fitter
                      }
         func_dict[inter_type](data, atoms, group_name)
+        self.fit_to_gmx(inter_type, group_name, atoms)
 
 
 

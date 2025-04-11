@@ -103,7 +103,7 @@ def _proper_dihedrals_plot(data, fit_params, atom_list, ax):
     y_fitted = np.zeros_like(x)
     for inter in fit_params:
         k, theta, n  = inter
-        angle_rad = np.deg2rad(theta)
+        angle_rad = theta
         y_fitted += k * (1 + np.cos(n*x - angle_rad))
 
     ax.plot(np.degrees(x), y, c='#6970E0', label='Distribution')
@@ -132,9 +132,9 @@ def _improper_dihedrals_plot(data, fit_params, atom_list, ax):
     mod = GaussianModel(x=x)
     pars = Parameters()
 
-    pars.add("amplitude", fit_params[0])
-    pars.add("center", fit_params[1])
-    pars.add("sigma", fit_params[2])
+    pars.add("amplitude", fit_params['amp'])
+    pars.add("center", fit_params['center'])
+    pars.add("sigma", fit_params['sigma'])
     fitted_distribution = mod.eval(pars, x=x)
 
     ax.plot(np.degrees(x), y, c='#6970E0', label='Distribution')
