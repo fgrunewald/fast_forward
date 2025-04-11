@@ -5,14 +5,6 @@ groups of an MDAnalysis Universe.
 import numpy as np
 from collections import defaultdict
 
-def find_atomnames(universe, atoms, molname):
-    """
-    Find the names of the atoms given the indices
-    """
-    mol_atoms = universe.atoms[universe.atoms.moltypes == molname]
-    name = "_".join(mol_atoms.atoms.names[np.array(atoms)])
-    return name
-
 def find_indices(universe, atoms, molname, natoms):
     """
     Find the atoms indices for all molecules
@@ -37,10 +29,10 @@ def itp_to_ag(block, mol_name, universe):
     for inter_type in block.interactions:
         for inter in block.interactions[inter_type]:
             atoms = inter.atoms
-            indices = find_indices(universe, atoms, mol_name, natoms=len(block.nodes))
-
-            group = inter.meta.get("comment", find_atomnames(universe, atoms, mol_name))
-            old_indices = indices_dict[inter_type].get(group, [])
-            indices_dict[inter_type][group] = indices + old_indices
+            group = inter.meta.get("comment", None)
+            if group:
+                indices = find_indices(universe, atoms, mol_name, natoms=len(block.nodes))
+                old_indices = indices_dict[inter_type].get(group, [])
+                indices_dict[inter_type][group] = indices + old_indices
 
     return indices_dict
