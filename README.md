@@ -19,6 +19,9 @@ that we use the numba library for paralell acceleration.
 - interactions are grouped by comments
 
 ## installation
+
+Fast forward can be installed using the following:
+
 ```
 git clone https://github.com/fgrunewald/fast_forward.git
 
@@ -26,5 +29,10 @@ cd fast_forward
 
 pip install ./
 ```
+
+## Documentation
+
+Documentation for fast forward's *ff_map* and *ff_inter* programs
+can be found at LINK
 
 

@@ -24,4 +24,5 @@ Contents
 .. toctree::
     :maxdepth: 1
 
-    tutorials/index
+    ff_map
+    ff_inter
