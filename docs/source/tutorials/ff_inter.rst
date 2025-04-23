@@ -13,6 +13,7 @@ the distribution of the interactions.
 The command looks as follows:
 
 .. code-block::
+
     ff_inter -f <.trr/.xtc/.gro/.pdb> -i <.itp> -s <.tpr> -pref <prefix>
 
 File format
@@ -24,6 +25,7 @@ following entry the first two bonds are put in a group and computed together and
 the last bond is skipped.
 
 .. code-block::
+
     [ bonds ]
     1 2 1 2000 ; group1
     2 3 1 2000 ; group1

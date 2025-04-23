@@ -21,3 +21,4 @@ tests/test_data/gen_itp/output/*.itp
 doc/build
 doc/source/api
 doc/source/.doctrees
+/docs/

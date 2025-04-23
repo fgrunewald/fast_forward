@@ -85,11 +85,11 @@ pygments_style = 'sphinx'
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-
-html_theme = "furo"
-html_theme_options = {
-    "sidebar_hide_name": True,
-}
+#
+# html_theme = "furo"
+# html_theme_options = {
+#     "sidebar_hide_name": True,
+# }
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
@@ -181,10 +181,10 @@ texinfo_documents = [
 
 
 # -- Extension configuration -------------------------------------------------
-apidoc_module_dir = '../../fast_forward'
-apidoc_output_dir = 'api'
-apidoc_separate_modules = True
-apidoc_excluded_paths = ['tests', 'redistributed']
+# apidoc_module_dir = '../../fast_forward'
+# apidoc_output_dir = 'api'
+# apidoc_separate_modules = True
+# apidoc_excluded_paths = ['tests', 'redistributed']
 
 autodoc_inherit_docstrings = False
 autoclass_content = 'both'
@@ -223,24 +223,24 @@ intersphinx_mapping = {
 # }
 
 autosectionlabel_prefix_document = True
-
-def add_intersphinx_aliases_to_inv(app):
-    from sphinx.ext.intersphinx import InventoryAdapter
-    inventories = InventoryAdapter(app.builder.env)
-
-    for alias, target in app.config.intersphinx_aliases.items():
-        alias_domain, alias_name = alias
-        target_domain, target_name = target
-        try:
-            found = inventories.main_inventory[target_domain][target_name]
-            try:
-                inventories.main_inventory[alias_domain][alias_name] = found
-            except KeyError:
-                continue
-        except KeyError:
-            continue
-
-
-def setup(app):
-    app.add_config_value('intersphinx_aliases', {}, 'env')
-    app.connect('builder-inited', add_intersphinx_aliases_to_inv)
+#
+# def add_intersphinx_aliases_to_inv(app):
+#     from sphinx.ext.intersphinx import InventoryAdapter
+#     inventories = InventoryAdapter(app.builder.env)
+#
+#     for alias, target in app.config.intersphinx_aliases.items():
+#         alias_domain, alias_name = alias
+#         target_domain, target_name = target
+#         try:
+#             found = inventories.main_inventory[target_domain][target_name]
+#             try:
+#                 inventories.main_inventory[alias_domain][alias_name] = found
+#             except KeyError:
+#                 continue
+#         except KeyError:
+#             continue
+#
+#
+# def setup(app):
+#     app.add_config_value('intersphinx_aliases', {}, 'env')
+#     app.connect('builder-inited', add_intersphinx_aliases_to_inv)

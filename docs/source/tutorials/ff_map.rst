@@ -14,6 +14,7 @@ mapping file format
 The following is an example command for mapping trajectories.
 
 .. code-block::
+
     ff_map -f <.trr/.xtc/.gro/.pdb> -m <.mapping/directory of .map> -s <.tpr> -o <.xtc> -mols <molecule names>
 
 
@@ -22,6 +23,7 @@ files of the molecules that are to be mapped. Entries in mapping files are writt
 follow the backwards style mapping file format.
 
 .. code-block::
+
     [ molecule ]
     <resnameAA> <resnameCG>
     [ martini ]
@@ -33,6 +35,7 @@ For example, the Martini3 .mapping entry for Alanine not including the
 hydrogens would look as follows and maps from the CHARMM force-field:
 
 .. code-block::
+
     [ molecule ]
     ALA ALA
     [ martini ]
@@ -50,6 +53,7 @@ in [Vermouth](https://github.com/marrink-lab/vermouth-martinize)-style mappings.
 use a separate map file for each residue. For example, the CHARMM map file for Alanine is:
 
 .. code-block::
+
     [ molecule ]
     ALA
 

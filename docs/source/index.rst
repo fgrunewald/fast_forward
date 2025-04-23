@@ -11,11 +11,12 @@ use the numba library for parallel acceleration.
 
 Installation
 ============
-git clone https://github.com/fgrunewald/fast_forward.git
 
-cd fast_forward
+.. code-block::
 
-pip install ./
+    git clone https://github.com/fgrunewald/fast_forward.git
+    cd fast_forward
+    pip install ./
 
 Contents
 ========
