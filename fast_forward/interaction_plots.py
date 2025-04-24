@@ -102,7 +102,7 @@ def _proper_dihedrals_plot(data, fit_params, atom_list, ax):
     y = data.T[1]
     y_fitted = np.zeros_like(x)
     for inter in fit_params:
-        k, theta, n  = inter
+        k, theta, n = inter
         angle_rad = theta
         y_fitted += k * (1 + np.cos(n*x - angle_rad))
 
