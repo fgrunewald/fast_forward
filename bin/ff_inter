@@ -72,6 +72,11 @@ def __main__():
                 lines = _file.readlines()
         read_itp(lines, ff)
 
+        fitter = InteractionFitter(constraint_converter=args.constraint_convert,
+                                   max_dihedrals=args.max_dihedral,
+                                   temperature=args.temperature,
+                                   precision=args.precision,
+                                   dihedral_scaling=args.dihedral_scaling)
         # loop over molecules
         for molname, block in ff.blocks.items():
             # calculate distributions for interaction
@@ -86,11 +91,6 @@ def __main__():
                     distributions[inter_type][group_name] = distr, pair_idxs
 
             # fit the interactions
-            fitter = InteractionFitter(constraint_converter=args.constraint_convert,
-                                       max_dihedrals=args.max_dihedral,
-                                       temperature=args.temperature,
-                                       precision=args.precision,
-                                       dihedral_scaling=args.dihedral_scaling)
             for inter_type in ['bonds', 'angles', 'dihedrals']:
                 for group_name, (data, atoms) in distributions[inter_type].items():
                     fitter.fit_interaction(data, atoms, group_name, inter_type)
