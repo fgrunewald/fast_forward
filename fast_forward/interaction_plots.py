@@ -153,7 +153,7 @@ def _improper_dihedrals_plot(data, fit_params, atom_list, ax):
                 }
     return data_out
 
-def make_distribution_plot(fit_data, axarr=None, save_plot_data=False):
+def make_distribution_plot(fit_data, save_plot_data=False, axarr=None):
     '''
 
     Parameters
