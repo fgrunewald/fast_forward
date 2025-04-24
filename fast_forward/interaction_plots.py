@@ -188,7 +188,7 @@ def make_distribution_plot(fit_data, save_plot_data=False, axarr=None):
             elif interaction_type == 'angles':
                 plot_data = _angles_plot(data, fitted_parameters, atom_list, ax)
             elif interaction_type == 'dihedrals':
-                if len(fitted_parameters) > 1:
+                if isinstance(fitted_parameters, list):
                     plot_data = _proper_dihedrals_plot(data, fitted_parameters, atom_list, ax)
                 else:
                     plot_data = _improper_dihedrals_plot(data, fitted_parameters, atom_list, ax)
