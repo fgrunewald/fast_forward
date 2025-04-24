@@ -296,6 +296,8 @@ class InteractionFitter:
                                                                        meta={"comment": group_name}))
             else:
                 for i in parameters.values():
+                    # factors derived from the fitting directly have negligible effects (~10^-3/4),
+                    # scaling them helps increase the strength of dihedral in the final interaction
                     k = i[0] * self.dihedral_scaling
                     x0_deg = np.degrees(i[1])
                     n = i[2]
