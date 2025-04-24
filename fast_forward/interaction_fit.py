@@ -72,15 +72,13 @@ class InteractionFitter:
         self.interactions_dict = defaultdict(list)
         self.fit_parameters = defaultdict(dict)
 
-    def _bonds_fitter(self, data, atoms, group_name):
+    def _bonds_fitter(self, data, group_name):
         """
         Fit bonds
         Parameters
         ----------
         data: np.array
             histogram of bond data
-        atoms: list
-            indices of the atoms involved in the interaction
         group_name: str
             names of the atoms involved in the interaction joined by a "_"
 
@@ -104,7 +102,7 @@ class InteractionFitter:
                                                     'distribution_params': [center, sigma],
                                                     'fit_params': [center, initial_sigma]}
 
-    def _angles_fitter(self, data, atoms, group_name,
+    def _angles_fitter(self, data, group_name,
                        ):
         """
         Fit angles
@@ -112,8 +110,6 @@ class InteractionFitter:
         ----------
         data: np.array
             histogram of bond data
-        atoms: list
-            indices of the atoms involved in the interaction
         group_name: str
             names of the atoms involved in the interaction joined by a "_"
 
@@ -169,7 +165,7 @@ class InteractionFitter:
         '''
         return self._proper_dihedral_model_function(params, x) - data
 
-    def _dihedrals_fitter(self, data, atoms,  group_name):
+    def _dihedrals_fitter(self, data, group_name):
         '''
         Fitter for dihedrals.
         Will try to fit both proper and improper dihedrals, deciding which to return based on
@@ -179,8 +175,6 @@ class InteractionFitter:
         ----------
         data: np.array
             histogram of bond data
-        atoms: list
-            indices of the atoms involved in the interaction
         group_name: str
             names of the atoms involved in the interaction joined by a "_"
 
@@ -190,12 +184,19 @@ class InteractionFitter:
         x = np.linspace(-np.pi, np.pi, 360)
         y = data.T[1]
 
+        # take care of periodic effects for improper dihedrals
+        x_gauss = np.concatenate((x, x + 2 * np.pi)) - np.pi
+        y_gauss = np.tile(y, 2)
+
         # first try fitting a gaussian to the data in case we have an improper dihedral
-        gaussian_result = _gaussian_fitter(x, y,
-                                                initial_center=dict(value=x[y.argmax()]),
-                                                initial_sigma=dict(value=15, min=0, max=np.pi),
-                                                initial_amplitude=dict(value=y.max())
-                                                )
+        gaussian_result = _gaussian_fitter(x_gauss[150:-150],
+                                           y_gauss[150:-150],
+                                           initial_center=dict(value=x[y.argmax()],
+                                                               min=-np.pi,
+                                                               max=np.pi),
+                                           initial_sigma=dict(value=15, min=0, max=np.pi),
+                                           initial_amplitude=dict(value=y.max())
+                                           )
 
         # now do fitting for proper dihedrals
         # Iterate over different numbers of terms to find the optimal one
@@ -237,12 +238,16 @@ class InteractionFitter:
                                                             'fit_params': pars_out}
 
         else:
-            center = np.round(np.degrees(gaussian_result.params['center']), self.precision)
-            fc = np.round((self.kb * self.temperature) / ((gaussian_result.params['sigma']) ** 2), self.precision)
+            # transform the centre back into the correct domain after fitting to account for periodicity.
+            c0 = (gaussian_result.params['center'] + (2*np.pi)) % (2*np.pi) - np.pi
+
+            center = np.round(c0, self.precision)
+            sigma = np.round((self.kb * self.temperature) / ((gaussian_result.params['sigma']) ** 2), self.precision)
+
             self.fit_parameters['dihedrals'][group_name] = {'data': data,
-                                                            'distribution_params': [center, fc],
+                                                            'distribution_params': [center, sigma],
                                                             'fit_params': {'amp': gaussian_result.params['amplitude'],
-                                                                           'center': gaussian_result.params['center'],
+                                                                           'center': c0,
                                                                            'sigma': gaussian_result.params['sigma']}}
 
     def fit_to_gmx(self, inter_type, group_name, atoms):
@@ -315,5 +320,5 @@ class InteractionFitter:
                      'angles': self._angles_fitter,
                      'dihedrals': self._dihedrals_fitter
                      }
-        func_dict[inter_type](data, atoms, group_name)
+        func_dict[inter_type](data, group_name)
         self.fit_to_gmx(inter_type, group_name, atoms)
