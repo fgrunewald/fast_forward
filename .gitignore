@@ -18,7 +18,6 @@ tests/test_data/gen_itp/output/*.itp
 **/htmlcov
 .idea
 
-doc/build
-doc/source/api
-doc/source/.doctrees
-/docs/
+docs/build/
+docs/source/api/
+docs/source/.doctrees

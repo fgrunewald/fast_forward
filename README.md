@@ -24,9 +24,7 @@ Fast forward can be installed using the following:
 
 ```
 git clone https://github.com/fgrunewald/fast_forward.git
-
 cd fast_forward
-
 pip install ./
 ```
 
