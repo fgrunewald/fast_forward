@@ -194,7 +194,9 @@ class InteractionFitter:
                                            initial_center=dict(value=x[y.argmax()],
                                                                min=-np.pi,
                                                                max=np.pi),
-                                           initial_sigma=dict(value=15, min=0, max=np.pi),
+                                           initial_sigma=dict(value=1,
+                                                              min=0,
+                                                              max=np.pi),
                                            initial_amplitude=dict(value=y.max())
                                            )
 
