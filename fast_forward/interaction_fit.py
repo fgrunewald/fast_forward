@@ -96,14 +96,13 @@ class InteractionFitter:
 
         # need this here because mdanalysis read gromacs coords in angstroms but need in nm.
         center = np.round(initial_center / 10, self.precision)
-        sigma = np.round((self.kb * self.temperature) / ((initial_sigma / 10) ** 2), -1)
+        sigma = np.round((self.kb * self.temperature) / ((initial_sigma / 10) ** 2), self.precision)
 
         self.fit_parameters['bonds'][group_name] = {'data': data,
                                                     'distribution_params': [center, sigma],
                                                     'fit_params': [center, initial_sigma]}
 
-    def _angles_fitter(self, data, group_name,
-                       ):
+    def _angles_fitter(self, data, group_name):
         """
         Fit angles
         Parameters
@@ -265,10 +264,10 @@ class InteractionFitter:
             else:
                 self.interactions_dict['bonds'].append(Interaction(atoms=atoms[0],
                                                                    parameters=[1, center, 10000],
-                                                                   meta={"ifndef": "FLEXIBLE", "comment": group_name}))
+                                                                   meta={"ifdef": "FLEXIBLE", "comment": group_name}))
                 self.interactions_dict['constraints'].append(Interaction(atoms=atoms[0],
                                                                          parameters=[1, center],
-                                                                         meta={"ifdef": "FLEXIBLE",
+                                                                         meta={"ifndef": "FLEXIBLE",
                                                                                "comment": group_name}))
         elif inter_type == 'angles':
             parameters = self.fit_parameters['angles'][group_name]['distribution_params']
@@ -294,15 +293,15 @@ class InteractionFitter:
             if isinstance(parameters, list):
                 center, sigma = parameters
                 center = np.round(np.degrees(center), self.precision)
-                fc = np.round((self.kb * self.temperature) / (sigma ** 2), self.precision)
+
                 self.interactions_dict['dihedrals'].append(Interaction(atoms=atoms[0],
-                                                                       parameters=[2, center, fc],
+                                                                       parameters=[2, center, sigma],
                                                                        meta={"comment": group_name}))
             else:
                 for i in parameters.values():
                     # factors derived from the fitting directly have negligible effects (~10^-3/4),
                     # scaling them helps increase the strength of dihedral in the final interaction
-                    k = i[0] * self.dihedral_scaling
+                    k = - i[0] * self.dihedral_scaling
                     x0_deg = np.degrees(i[1])
                     n = i[2]
                     self.interactions_dict['dihedrals'].append(Interaction(atoms=atoms[0],
