@@ -203,7 +203,6 @@ class InteractionFitter:
         # Iterate over different numbers of terms to find the optimal one
         best_aic = np.inf
         best_params = None
-        aic_values = []
 
         for num_terms in range(1, self.max_dihedrals + 1):
             params = lmfit.Parameters()
@@ -218,7 +217,6 @@ class InteractionFitter:
 
             # Compute AIC (lower is better)
             aic = result.aic
-            aic_values.append(aic)
 
             # Keep track of the best model
             if aic < best_aic:
