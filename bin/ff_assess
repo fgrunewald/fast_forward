@@ -19,46 +19,51 @@ VERSION = 'fast_forward version {}'.format(fast_forward.__version__)
 def hellinger(p,q):
     return np.round(np.sqrt(np.sum(np.power((np.sqrt(p) - np.sqrt(q)),2))) / np.sqrt(2),2)
 
-def report(h_score_dict, h_score, exclude_outliers=False):
-    buff = []
-    add = buff.append
 
-    input_len = output_len = 1
+def report(h_score_dict, exclude_outliers=False):
+    buff = ''
+
+    buff += " [ Interaction Distribution Report ]\n"
+    buff += f"   Overall Score : {{mean:.2f}} ± {{std:.2f}}\n\n"
+    buff += " Score guide:\n"
+    buff += "   0.0-0.3 : good\n"
+    buff += "   0.3-0.5 : ok\n"
+    buff += "   0.5-1.0 : bad\n"
+
     if exclude_outliers:
-        input_len = len(h_score)
-        h_score = np.array(h_score)[np.array(np.where(np.array(h_score)<0.5)[0], dtype=int)]
-        output_len = len(h_score)
+        buff += "\n\tNB: values over 0.5 have been excluded from the above summary value\n\n"
+    else:
+        buff += '\n'
 
-    add(" [ Interaction Distribution Report ]\n")
-    add("   Overall Score : {mean:.2f} ± {std:.2f}\n".format(mean=np.array(h_score).mean(),
-                                                             std=np.array(h_score).std()))
-    add(" Score guide:")
-    add("   0.0-0.3 : good")
-    add("   0.3-0.5 : ok")
-    add("   0.5-1.0 : bad")
-
-    if input_len != output_len:
-        add("\n   NB: values over 0.5 have been excluded from the above summary value\n")
-
-    add(" Interaction Scores:")
-    add(" 0 - identical, 1 - no overlap")
+    buff += " Interaction Scores:\n"
+    buff += " 0 - identical, 1 - no overlap\n\n"
+    h_score = []
     for interaction_type in h_score_dict.keys():
-        add(f" {interaction_type} ")
+        buff += f" {interaction_type} \n"
         for atom_group, score in h_score_dict[interaction_type].items():
-            if score < 0.5: # arbitrary cut off for now
-                add(f"\t{atom_group:20s}: {score:.2f}")
+            if exclude_outliers:
+                if score < 0.5:  # arbitrary cut off for now
+                    buff += f"\t{atom_group:20s}: {score:.2f}\n"
+                    h_score.append(score)
+                else:
+                    buff += f"\t{atom_group:20s}: {score:.2f} (excluded)\n"
             else:
-                add(f"\t{atom_group:20s}: {score:.2f} (excluded)")
+                buff += f"\t{atom_group:20s}: {score:.2f}\n"
+                h_score.append(score)
 
-    print('\n'.join(buff))
+    printable = buff.format(mean=np.array(h_score).mean(),
+                      std=np.array(h_score).std())
+
+    print(printable)
     with open('report.out', 'w') as fout:
-        fout.writelines('\n'.join(buff))
+        fout.writelines(printable)
 
 
 BINS_DICT = {"bonds": np.arange(0, 7, 0.01),
              "angles": np.arange(181),
              "dihedrals": np.arange(-180, 181)
              }
+
 
 def __main__():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter,)
@@ -90,8 +95,6 @@ def __main__():
                 lines = _file.readlines()
         read_itp(lines, ff)
 
-        h_score = []
-
         h_score_dict = {'bonds': {},
                         'angles': {},
                         'dihedrals': {}}
@@ -107,7 +110,6 @@ def __main__():
                     reference_data = np.loadtxt([i for i in distribution_files if group_name in i and inter_type in i][0])
                     # calculate hellinger distance between simulated and reference distributions
                     score = hellinger(probs/probs.sum(), reference_data.T[1] / reference_data.T[1].sum())
-                    h_score.append(score)
                     h_score_dict[inter_type][group_name] = score
 
                     if args.plots:
@@ -128,7 +130,7 @@ def __main__():
                         fig.savefig(f'{inter_type}_{group_name}')
                         plt.close(fig)
 
-        report(h_score_dict, h_score, args.exclude_outliers)
+        report(h_score_dict, args.exclude_outliers)
 
 
 __main__()
