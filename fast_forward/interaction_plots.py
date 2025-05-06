@@ -132,13 +132,16 @@ def _improper_dihedrals_plot(data, fit_params, atom_list, ax):
     mod = GaussianModel(x=x)
     pars = Parameters()
 
-    pars.add("amplitude", fit_params['amp'])
-    pars.add("center", fit_params['center'])
-    pars.add("sigma", fit_params['sigma'])
+    pars.add("amplitude", value=fit_params['amp'])
+    pars.add("center", value=fit_params['center'])
+    pars.add("sigma", value=fit_params['sigma'])
     fitted_distribution = mod.eval(pars, x=x)
 
+    x_plot = (x+(2*np.pi)) % (2*np.pi) - np.pi
+
     ax.plot(np.degrees(x), y, c='#6970E0', label='Distribution')
-    ax.plot(np.degrees(x), fitted_distribution, c='#E06B69', label='Fit')
+    ax.plot(np.degrees(x_plot)[np.argsort(x_plot)],
+            fitted_distribution[np.argsort(x_plot)], c='#E06B69', label='Fit')
 
     ax.set_xlim(-180, 180)
 

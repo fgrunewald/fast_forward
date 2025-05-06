@@ -246,7 +246,7 @@ class InteractionFitter:
             self.fit_parameters['dihedrals'][group_name] = {'data': data,
                                                             'distribution_params': [center, sigma],
                                                             'fit_params': {'amp': gaussian_result.params['amplitude'],
-                                                                           'center': c0,
+                                                                           'center': gaussian_result.params['center'],
                                                                            'sigma': gaussian_result.params['sigma']}}
 
     def fit_to_gmx(self, inter_type, group_name, atoms):
