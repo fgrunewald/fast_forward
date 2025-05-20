@@ -55,6 +55,8 @@ def __main__():
                         help='Maximum multiplicity of dihedral to try stacking during dihedral fitting')
     parser.add_argument('-dihedral-scaling', dest='dihedral_scaling', type=int, default=1e3,
                         help='Scale factor for strength of proper dihedral terms from fit to potential')
+    parser.add_argument('-itp-only', default=False, action="store_true",
+                        dest="itp_only", help="Use only interactions written into itp already, don't identify any more")
 
     args = parser.parse_args()
 
@@ -80,7 +82,8 @@ def __main__():
         # loop over molecules
         for molname, block in ff.blocks.items():
             # calculate distributions for interaction
-            guess_interactions(block)
+            if not args.itp_only:
+                guess_interactions(block)
             interaction_groups = itp_to_ag(block, molname, u)
             distributions = {"bonds": {}, "angles": {}, "dihedrals": {}}
             for inter_type in ['bonds', 'angles', 'dihedrals']:
