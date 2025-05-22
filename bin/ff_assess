@@ -107,7 +107,11 @@ def __main__():
                     # calculate simulation distribution
                     probs, edges = np.histogram(time_series, density=True, bins=BINS_DICT[inter_type])
                     # read in reference distribution
-                    reference_data = np.loadtxt([i for i in distribution_files if group_name in i and inter_type in i][0])
+                    try:
+                        reference_data = np.loadtxt([i for i in distribution_files if group_name in i and inter_type in i][0])
+                    except IndexError:
+                        print(f"{group_name} file not found!")
+                        continue
                     # calculate hellinger distance between simulated and reference distributions
                     score = hellinger(probs/probs.sum(), reference_data.T[1] / reference_data.T[1].sum())
                     h_score_dict[inter_type][group_name] = score
