@@ -115,7 +115,7 @@ def _proper_dihedrals_plot(data, fit_params, atom_list, ax):
     ax.set_title(f'{atom_list} dihedral')
     ax.set_xlabel('Angle')
 
-    data_out = {ax.get_xlabel(): x,
+    data_out = {ax.get_xlabel(): np.degrees(x),
                 'simulated_distribution': y,
                 'fitted_distribution': y_fitted,
                 }
@@ -150,9 +150,9 @@ def _improper_dihedrals_plot(data, fit_params, atom_list, ax):
     ax.set_xlabel('Angle')
 
 
-    data_out = {ax.get_xlabel(): x,
+    data_out = {ax.get_xlabel(): np.degrees(x),
                 'simulated_distribution': y,
-                'fitted_distribution': fitted_distribution,
+                'fitted_distribution': fitted_distribution[np.argsort(x_plot)],
                 }
     return data_out
 
