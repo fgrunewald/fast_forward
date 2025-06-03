@@ -176,8 +176,6 @@ class InteractionFitter:
             histogram of bond data
         group_name: str
             names of the atoms involved in the interaction joined by a "_"
-
-
         '''
 
         x = np.linspace(-np.pi, np.pi, 360)
@@ -203,6 +201,7 @@ class InteractionFitter:
         # Iterate over different numbers of terms to find the optimal one
         best_aic = np.inf
         best_params = None
+        single_params = None
 
         for num_terms in range(1, self.max_dihedrals + 1):
             params = lmfit.Parameters()
@@ -223,6 +222,10 @@ class InteractionFitter:
                 best_aic = aic
                 best_params = result.params
 
+            # Save the parameters for a single periodic function
+            if num_terms == 2:
+                single_params = result.params
+
         num_terms = len(best_params) // 3  # Each term has k, n, and x0
 
         condition0 = best_aic < gaussian_result.aic
@@ -233,6 +236,7 @@ class InteractionFitter:
         if condition0 or condition1:
             if not condition0 and condition1:
                 num_terms = 2
+                best_params = single_params
             pars_out = []
             for i in range(1, num_terms):
                 x0 = best_params[f'x0_{i}'].value
