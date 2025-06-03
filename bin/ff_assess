@@ -12,6 +12,7 @@ from fast_forward.compute_bonded import compute_value_for_interaction
 from fast_forward.itp_to_ag import itp_to_ag
 from fast_forward.itp_parser_sub import read_itp
 import matplotlib.pyplot as plt
+import pickle
 
 VERSION = 'fast_forward version {}'.format(fast_forward.__version__)
 
@@ -76,6 +77,8 @@ def __main__():
                         help="make plots comparing distributions")
     parser.add_argument('-outliers', default=False, action='store_true', dest='exclude_outliers',
                         help='exclude outliers from overall score')
+    parser.add_argument('-plot-data', default=False, action='store_true', dest="plot_data",
+                        help='save data for making plots as single pickle file')
 
     args = parser.parse_args()
 
@@ -87,6 +90,7 @@ def __main__():
     else:
         u = mda.Universe(args.trajfile, in_memory=True)
 
+    plot_data = {}
     # if itp file is provided use it
     if args.itp_files:
         ff = vermouth.forcefield.ForceField("dummy")
@@ -134,7 +138,14 @@ def __main__():
                         fig.savefig(f'{inter_type}_{group_name}')
                         plt.close(fig)
 
+                    if args.plot_data:
+                        plot_data[f'{inter_type}_{group_name}'] = {"x": reference_data.T[0],
+                                                                   "reference": reference_data.T[1],
+                                                                   'simulated': probs}
+
         report(h_score_dict, args.exclude_outliers)
 
+    if args.plot_data:
+        pickle.dump(plot_data, open('plot_data.p', 'wb'))
 
 __main__()
