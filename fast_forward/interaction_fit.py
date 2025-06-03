@@ -195,7 +195,7 @@ class InteractionFitter:
                                                                max=np.pi),
                                            initial_sigma=dict(value=1,
                                                               min=0,
-                                                              max=np.pi),
+                                                              max=np.pi/3),
                                            initial_amplitude=dict(value=y.max())
                                            )
 
@@ -225,8 +225,14 @@ class InteractionFitter:
 
         num_terms = len(best_params) // 3  # Each term has k, n, and x0
 
+        condition0 = best_aic < gaussian_result.aic
+        condition1 = np.isclose(gaussian_result.params['sigma'].value, gaussian_result.params['sigma'].max)
+
         # compare the aic values to determine which type of dihedral we have
-        if best_aic < gaussian_result.aic:
+        # also make sure we don't have a very wide gaussian, where a single periodic function will suffice
+        if condition0 or condition1:
+            if not condition0 and condition1:
+                num_terms = 2
             pars_out = []
             for i in range(1, num_terms):
                 x0 = best_params[f'x0_{i}'].value
