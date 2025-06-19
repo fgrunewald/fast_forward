@@ -12,11 +12,70 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from collections import defaultdict
+import numpy as np
 import networkx as nx
 import MDAnalysis as mda
 from MDAnalysis import transformations
+from pysmiles import PTE
 from fast_forward.hydrogen import BUILD_HYDRO, find_helper_atoms
 from tqdm import tqdm
+  
+def guess_bond_order(element_1, element_2, bond_length):
+    # Bond lengths taken from the CCCBDB (Release 22 (May 2022))
+    # Ranges were manually adjusted to cover the areas
+    # N:N bond length range is a guess based on one  submitted result
+    bond_order = 1
+    if element_1 == element_2 == 'C':
+        if 0.1450 <= bond_length  <= 0.1596:
+            bond_order = 1
+        elif 0.1370 <= bond_length  <= 0.1450:
+            bond_order = 1.5
+        elif 0.1269 <= bond_length  <= 0.1369:
+            bond_order = 2
+        elif 0.1187 <= bond_length  <= 0.1268:
+            bond_order = 3
+    elif element_1 == "N" and element_2 == "C" or element_2 == "N" and element_1 == "C":
+        if 0.1351 <= bond_length  <= 0.1492:
+            bond_order = 1
+        elif 0.1331 <= bond_length  <= 0.1350:
+            bond_order = 1.5
+        elif 0.1178 <= bond_length  <= 0.1330:
+            bond_order = 2
+        elif 0.1140 <= bond_length  <= 0.1177:
+            bond_order = 3
+    elif element_1 == "O" and element_2 == "C" or element_2 == "O" and element_1 == "C":
+        if 0.1320 <= bond_length  <= 0.1448:
+            bond_order = 1
+        elif 0.1135 <= bond_length  <= 0.1272:
+            bond_order = 2
+        elif 0.1128 <= bond_length  <= 0.1134:
+            bond_order = 3
+    elif element_1 == "O" and element_2 == "N" or element_2 == "O" and element_1 == "N":
+        if 0.1238 <= bond_length  <= 0.1507:
+            bond_order = 1
+        elif 0.1060 <= bond_length  <= 0.1237:
+            bond_order = 2
+    elif element_1 == "N" and element_2 == "N" or element_2 == "N" and element_1 == "N":
+        if 0.1351 <= bond_length  <= 0.2236:
+            bond_order = 1
+        elif 0.1253 <= bond_length  <= 0.1350:
+            bond_order = 1.5
+        elif 0.1139 <= bond_length  <= 0.1252:
+            bond_order = 2
+    elif element_1 == "S" and element_2 == "C" or element_2 == "S" and element_1 == "C":
+        if 0.1676 <= bond_length  <= 0.1849:     # Check range again, maybe too much
+            bond_order = 1
+        elif 0.1553 <= bond_length  <= 0.1675:
+            bond_order = 2
+    return bond_order
+
+def assign_order(g):
+    for n1, n2 in g.edges:
+        order = guess_bond_order(g.nodes[n1]['element'],
+                                 g.nodes[n2]['element'],
+                                 g.edges[(n1, n2)]['lenght'])
+        g.edges[(n1,n2)]['order'] = order
+    return g
 
 class UniverseHandler(mda.Universe):
     """
@@ -44,6 +103,8 @@ class UniverseHandler(mda.Universe):
         self.__n_residues = None
         self.__pbc_completed = False
         self.__resids = None
+        self.__molecule_graphs = None
+        self.__mass_to_element = None
 
     def pbc_complete(self):
         if not self.__pbc_completed:
@@ -73,6 +134,34 @@ class UniverseHandler(mda.Universe):
                     new_pos += hydro_coord
                 atom.position = new_pos / (len(hydrogen_coords) + 1)
         return atoms_to_treat.indices
+
+    def generate_molecule_graphs(self):
+        mol_graphs = {}
+        for mol_name, idxs in self.mol_idxs_by_name.items():
+            molecule = self.select_atoms(f"molnum {idxs[0]}")
+            bonds = np.array([molecule.bonds.indices])
+            eles = [self.mass_to_element(mass) for mass in molecule.masses]
+            g = nx.Graph()
+            g.add_edges_from(bonds, length=molecule.bonds.values())
+            nx.set_node_attributes(g, dict(zip(molecule.indices, eles)) ,'element')
+            assign_order(g)
+            mol_graphs[mol_name] = g
+        return mol_graphs
+
+    def mass_to_element(self, mass):
+        if self.__mass_to_element is None:
+            self.__mass_to_element = {round(PTE[ele]['AtomicMass']): ele for ele in PTE}
+        try:
+            ele = self.__mass_to_element[round(mass)]
+        except KeyError:
+            raise IOError(f"Did not find element with mass {mass}.")
+        return ele
+
+    @property
+    def molecule_graphs(self):
+        if self.__molecule_graphs is None:
+            self.__molecule_graphs = self.generate_molecule_graphs()
+        return self.__molecule_graphs
 
     @property
     def n_atoms(self):
