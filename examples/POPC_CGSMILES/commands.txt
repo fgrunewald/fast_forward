@@ -1,0 +1,2 @@
+ff_map -f POPC_noH.gro -s POPC_noH.tpr -mf POPC.map -o POPC_mapped_H_re.gro -mols POPC -add_H CTL1:CH1 CTL2:CH2 CTL5:CH3 CEL1:CHd
+ff_map -f POPC.gro -s POPC.tpr -mf POPC.map -o POPC_mapped.gro -mols POPC
