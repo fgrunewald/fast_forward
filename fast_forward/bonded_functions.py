@@ -8,7 +8,7 @@ def _fast_pair_dists(arr1, arr2):
     pair_dists = np.zeros((frames))
     for fdx in prange(frames):
         diff = arr1[fdx] - arr2[fdx]
-        norm = (diff[0]**2.0 + diff[1]**2.0 + diff[2]**2.)**0.5
+        norm = (diff[0]**2.0 + diff[1]**2.0 + diff[2]**2.0)**0.5
         pair_dists[fdx] = norm
     return pair_dists
 
@@ -25,7 +25,7 @@ def _fast_angle(arr1, arr2, arr3):
 @njit(parallel=True)
 def _fast_dih(arr1, arr2, arr3, arr4):
     frames = arr1.shape[0]
-    angle= np.zeros((frames))
+    angle = np.zeros((frames))
     for fdx in prange(frames):
         diff1 = arr1[fdx] - arr2[fdx]
         diff2 = arr3[fdx] - arr2[fdx]
