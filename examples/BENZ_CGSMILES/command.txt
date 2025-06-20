@@ -1,0 +1,1 @@
+ff_map -f THIO.gro -s min.tpr -cgs "{[#TC5]1[#TC6][#TC5]1}.{#TC5=[$]cc[$],#TC6=[$]s[$]}" -mols "smiles_molecule" -o test.gro
