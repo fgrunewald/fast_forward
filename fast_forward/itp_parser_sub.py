@@ -44,7 +44,11 @@ class FastForwardITPParser(ITPDirector):
         lineno = 0
         for lineno, line in enumerate(file_handle, 1):
             line, comment = split_comments(line, self.COMMENT_CHAR)
-            self.current_comment = comment
+            if self.COMMENT_CHAR in comment:
+                atom_comment, _ = split_comments(comment, self.COMMENT_CHAR)
+                self.current_comment = atom_comment
+            else:
+                self.current_comment = comment
             if not line:
                 continue
             result = self.dispatch(line)(line, lineno)
