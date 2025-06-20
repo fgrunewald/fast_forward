@@ -14,6 +14,7 @@
 from vermouth.gmx.itp_read import ITPDirector
 from vermouth.parser_utils import split_comments
 from vermouth.molecule import Interaction
+import numpy as np
 
 class FastForwardITPParser(ITPDirector):
     '''
@@ -98,3 +99,48 @@ class FastForwardITPParser(ITPDirector):
 def read_itp(lines, force_field):
     director = FastForwardITPParser(force_field)
     return list(director.parse(iter(lines)))
+
+def _matching_angles(angles):
+    '''
+
+    for a list of tuples that may contain integers in reversed order, return only one entry.
+
+    e.g. for [(0,1,2),(1,2,3),(2,1,0)] we get [(0,1,2),(1,2,3)]
+
+    '''
+
+    seen = set()
+    unique_list = []
+
+    for tup in angles:
+        sorted_tup = tuple(sorted(tup))  # Sort to ensure order-independent uniqueness
+        if sorted_tup not in seen:
+            seen.add(sorted_tup)
+            unique_list.append(tup)  # Append the original order
+
+    return unique_list
+
+def guess_interactions(block):
+    """
+    From the bonds described in a block's interactions, generate all possible angles and dihedrals.
+    -----
+    block: :class:`vermouth.molecule.Block`
+    """
+
+    block.make_edges_from_interactions()
+
+    angles = _matching_angles(block.guess_angles())
+    dihedrals = _matching_angles(block.guess_dihedrals())
+
+    # add dummy interactions to block if they're not already there.
+    for i in angles:
+        if i not in [[int(j) for j in k.atoms] for k in block.interactions['angles']]:
+            comment = '_'.join([block.nodes[atom]['atomname'] for atom in i])
+            block.add_interaction('angles', atoms=i,
+                                  parameters=['2', '10', '10'], meta={'version': 0, 'comment': comment})
+    for i in dihedrals:
+        if i not in [[int(j) for j in k.atoms] for k in block.interactions['dihedrals']]:
+            comment = '_'.join([block.nodes[atom]['atomname'] for atom in i])
+            block.add_interaction('dihedrals', atoms=i,
+                                  parameters=['1', '10', '1', '1'], meta={'version': 0, 'comment': comment})
+
