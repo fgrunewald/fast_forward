@@ -11,8 +11,8 @@ import fast_forward
 from fast_forward.compute_bonded import compute_value_for_interaction
 from fast_forward.itp_to_ag import itp_to_ag
 from fast_forward.itp_parser_sub import read_itp
-import matplotlib.pyplot as plt
-import pickle
+from fast_forward.interaction_plots import make_distribution_plot
+from collections import defaultdict
 
 VERSION = 'fast_forward version {}'.format(fast_forward.__version__)
 
@@ -90,7 +90,7 @@ def __main__():
     else:
         u = mda.Universe(args.trajfile, in_memory=True)
 
-    plot_data = {}
+    plot_data = defaultdict(dict)
     # if itp file is provided use it
     if args.itp_files:
         ff = vermouth.forcefield.ForceField("dummy")
@@ -120,32 +120,11 @@ def __main__():
                     score = hellinger(probs/probs.sum(), reference_data.T[1] / reference_data.T[1].sum())
                     h_score_dict[inter_type][group_name] = score
 
-                    if args.plots:
-                        # make a plot to compare the distributions
-                        fig, ax = plt.subplots()
-                        ax.plot(reference_data.T[0],
-                                reference_data.T[1],
-                                c='#4E63F5',
-                                label='Reference',
-                                )
-                        ax.plot(reference_data.T[0],
-                                probs,
-                                c='#F54E5D',
-                                label='Simulation',
-                                )
-                        ax.set_title(f'{" ".join([str(i + 1) for i in pair_idxs])} {inter_type[:-1]}')
-                        ax.legend()
-                        fig.savefig(f'{inter_type}_{group_name}')
-                        plt.close(fig)
-
-                    if args.plot_data:
-                        plot_data[f'{inter_type}_{group_name}'] = {"x": reference_data.T[0],
-                                                                   "reference": reference_data.T[1],
-                                                                   'simulated': probs}
-
+                    plot_data[inter_type][group_name] = {"x": reference_data.T[0],
+                                                         "Reference": reference_data.T[1],
+                                                         'Simulated': probs}
+        if args.plots:
+            make_distribution_plot(plot_data, args.plot_data)
         report(h_score_dict, args.exclude_outliers)
-
-    if args.plot_data:
-        pickle.dump(plot_data, open('plot_data.p', 'wb'))
 
 __main__()
