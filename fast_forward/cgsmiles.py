@@ -13,6 +13,14 @@
 # limitations under the License.
 import networkx as nx
 from cgsmiles.resolve import MoleculeResolver
+from .map_file_parers import Mapping
+
+def load_cgsmiles_library(filepath):
+    cgsmiles_strs = []
+    with open(filepath) as _file:
+        for line in _file.readlines():
+            cgsmiles_strs.append(line.strip())
+    return cgsmiles_strs
 
 def find_one_graph_match(graph1, graph2):
     """
@@ -35,31 +43,62 @@ def find_one_graph_match(graph1, graph2):
     mapping = next(raw_matches)
     return mapping
 
-def cgsmiles_to_mapping(cgsmiles_strs, mol_names, univ):
+def cgsmiles_to_mapping(univ, cgsmiles_strs, mol_names, mol_matching=True):
     """
-    Convert cgsmiles str to mapping.
+    Given a list of mappings described by cgsmiles strings
+    this function maps the atom indices to CG beads using,
+    graph isomorphism.
+
+    Parameters
+    ----------
+    univ: :class:`fast_forward.UniverseHandler`
+    cgsmiles_strs: list[str]
+    mol_names: list[str]
+
+
+    Retunrs
+    -------
+    list, list, dict
     """
-    print(cgsmiles_strs)
-    mapped_atoms, bead_idxs = [], []
+    mapped_atoms, bead_idxs, mappings = [], [], {}
     bead_count = 0
-    for cgs, mol_name in zip(cgsmiles_strs, mol_names):
-        print(cgs)
-        resolver = MoleculeResolver.from_string(cgs, last_all_atom=True)
-        cg, aa = resolver.resolve()
+    for idx, mol_name in enumerate(mol_names):
         mol_graph = univ.molecule_graphs[mol_name]
+        # names match the order of cgs strings
+        if mol_matching:
+            possible_cgs = [cgsmiles_strs[idx]]
+        else:
+            possible_cgs = cgsmiles_strs
 
-        try:
-            _match = find_one_graph_match(mol_graph, aa)
-        except StopIteration:
-            msg = f"CGsmiles string {cgs} does not match molecule with name {mol_name}."
-            raise SyntaxError(msg)
+        for cgs_str in possible_cgs:
+            # read the cgsmiles string
+            resolver = MoleculeResolver.from_string(cgs_str, last_all_atom=True)
+            cg, aa = resolver.resolve()
+            _match = find_one_graph_match(aa, mol_graph)
+            if _match:
+                break
+        else:
+            raise SyntaxError("No matching cgsmiles string found.")
 
+        offset=0
         for mol_idx in univ.mol_idxs_by_name[mol_name]:
             for bead in cg.nodes:
                 atoms = cg.nodes[bead]['graph'].nodes
                 mapped_atoms.append([_match[atom]+offset for atom in atoms])
                 bead_idxs.append(bead_count)
                 bead_count += 1
-            offset += len(mol_graph)
+                # we only need to do this once per molecule type
+                if mol_idx == 0:
+                    resnames = [univ.atoms[_match[atom]].resname for atom in atoms]
+                    resname = resnames[0]
+                    if resname not in mappings:
+                        mappings[resname] = Mapping(resname, resname)
+                    mapping = mappings[resname]
+                    for atom in atoms:
+                        mapping
+                        mapping.add_atom(cg.nodes[bead]["fragname"]+f"{bead}",
+                                         _match[atom],
+                                         atom=univ.atoms[_match[atom]].name)
 
-    return mapped_atoms, bead_idxs
+            offset += len(mol_graph)
+    return mapped_atoms, bead_idxs, mappings

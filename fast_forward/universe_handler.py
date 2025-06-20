@@ -17,9 +17,10 @@ import networkx as nx
 import MDAnalysis as mda
 from MDAnalysis import transformations
 from pysmiles import PTE
+from pysmiles.smiles_helper import correct_aromatic_rings
 from fast_forward.hydrogen import BUILD_HYDRO, find_helper_atoms
 from tqdm import tqdm
-  
+
 def guess_bond_order(element_1, element_2, bond_length):
     # Bond lengths taken from the CCCBDB (Release 22 (May 2022))
     # Ranges were manually adjusted to cover the areas
@@ -70,11 +71,15 @@ def guess_bond_order(element_1, element_2, bond_length):
     return bond_order
 
 def assign_order(g):
+    nx.set_node_attributes(g, False, 'aromatic')
     for n1, n2 in g.edges:
         order = guess_bond_order(g.nodes[n1]['element'],
                                  g.nodes[n2]['element'],
-                                 g.edges[(n1, n2)]['lenght'])
+                                 g.edges[(n1, n2)]['length'])
         g.edges[(n1,n2)]['order'] = order
+        if order == 1.5:
+            g.nodes[n1]['aromatic'] = True
+            g.nodes[n2]['aromatic'] = True
     return g
 
 class UniverseHandler(mda.Universe):
@@ -120,7 +125,7 @@ class UniverseHandler(mda.Universe):
         """
         # much faster to make a bonded graph even of the entire system
         bonded_graph = nx.Graph()
-        bonded_graph.add_edges_from(list(self.atoms.get_connections("bonds").indices))
+        bonded_graph.add_edges_from([ tuple(indices) for indices in self.atoms.get_connections("bonds").indices])
         # select the atoms to be treated
         select_string = "type " + " ".join(association_dict.keys())
         atoms_to_treat = self.select_atoms(select_string)
@@ -136,21 +141,30 @@ class UniverseHandler(mda.Universe):
         return atoms_to_treat.indices
 
     def generate_molecule_graphs(self):
+        """
+        Generate molecular graphs from the topology information.
+        The molecular graphs contain the elements, bond order,
+        and if the molecule is aromatic or charged.
+        """
         mol_graphs = {}
         for mol_name, idxs in self.mol_idxs_by_name.items():
             molecule = self.select_atoms(f"molnum {idxs[0]}")
-            bonds = np.array([molecule.bonds.indices])
+            bonds = [tuple(indices) for indices in molecule.bonds.indices]
             eles = [self.mass_to_element(mass) for mass in molecule.masses]
+            lengths = {bond: length/10. for bond, length in zip(bonds, molecule.bonds.values())}
             g = nx.Graph()
-            g.add_edges_from(bonds, length=molecule.bonds.values())
+            g.add_edges_from(bonds)
+            nx.set_edge_attributes(g, lengths, 'length')
             nx.set_node_attributes(g, dict(zip(molecule.indices, eles)) ,'element')
-            assign_order(g)
+            g=assign_order(g)
+            # we have to rekekulize the graph according to pysmiles rules
+            correct_aromatic_rings(g)
             mol_graphs[mol_name] = g
         return mol_graphs
 
     def mass_to_element(self, mass):
         if self.__mass_to_element is None:
-            self.__mass_to_element = {round(PTE[ele]['AtomicMass']): ele for ele in PTE}
+            self.__mass_to_element = {round(PTE[ele]['AtomicMass']): ele for ele in PTE if type(ele)==str}
         try:
             ele = self.__mass_to_element[round(mass)]
         except KeyError:

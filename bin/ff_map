@@ -27,7 +27,7 @@ import fast_forward
 from fast_forward.mapping import create_new_universe, forward_map_positions, forward_map_indices
 from fast_forward.universe_handler import UniverseHandler
 from fast_forward.map_file_parers import read_mapping
-from fast_forward.cgsmiles import cgsmiles_to_mapping
+from fast_forward.cgsmiles import cgsmiles_to_mapping, load_cgsmiles_library
 
 VERSION = 'fast_forward version {}'.format(fast_forward.__version__)
 
@@ -50,7 +50,9 @@ def main():
                             help='tpr file (TPR)')
     file_group.add_argument('-o', dest='outpath', type=str, 
                             help='name of the mapped trajectory (XTC/GRO)')
-    file_group.add_argument('cgs', dest='cgsmiles_strs', default=None, type=str, nargs='*',
+    file_group.add_argument('-cgs', dest='cgsmiles_strs', type=str, nargs='*',
+                            help='any number of cgsmiles strings.')
+    file_group.add_argument('-cgsl', dest='cgsmiles_library', type=str,
                             help='any number of cgsmiles strings.')
     file_group.add_argument('-m', dest='map_file', type=str, default="",
                             help='.mapping file or path to directory of .map files')
@@ -115,13 +117,18 @@ def main():
         # first mapp the atom indices
         mapped_atoms, bead_idxs = forward_map_indices(init_universe,
                                                       mappings)
-
+        cgsmiles_strs = None
     # we do the mapping with cgsmiles
+    elif args.cgsmiles_library:
+        cgsmiles_strs = load_cgsmiles_library(args.cgsmiles_library)
     elif args.cgsmiles_strs:
+        cgsmiles_strs = args.cgsmiles_strs
+
+    if cgsmiles_strs:
         print("INFO - Mapping CGsmiles to universe.")
-        mapped_atoms, bead_idxs = cgsmiles_to_mapping(args.cgsmiles_strs,
-                                                      args.mol_names,
-                                                      init_universe)       
+        mapped_atoms, bead_idxs, mappings = cgsmiles_to_mapping(init_universe,
+                                                                cgsmiles_strs,
+                                                                args.mol_names)
     n_frames = len(init_universe.trajectory)
 
     print("INFO - Mapping universe - positions")
@@ -147,7 +154,6 @@ def main():
 
     print("INFO - Mapping universe - building pos-array")
     cg_universe = create_new_universe(init_universe, mapped_trajectory, mappings)
-    print("--->",len(cg_universe))
     # write coordinate
     print("INFO - Writing CG trajectory")
     if args.traj:
