@@ -32,6 +32,8 @@ from vermouth.file_writer import DeferredFileWriter
 
 VERSION = 'fast_forward version {}'.format(fast_forward.__version__)
 
+RECOGNISED_INTERACTIONS = ['bonds', 'angles', 'dihedrals', 'virtual_sitesn', 'virtual_sites3']
+
 def __main__():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter,)
     parser.add_argument('-f', type=str, dest="trajfile", help="trajectory file")
@@ -85,18 +87,13 @@ def __main__():
             if not args.itp_only:
                 guess_interactions(block)
             interaction_groups = itp_to_ag(block, molname, u)
-            distributions = {"bonds": {}, "angles": {}, "dihedrals": {}}
-            for inter_type in ['bonds', 'angles', 'dihedrals']:
+            for inter_type in RECOGNISED_INTERACTIONS:
                 for group_name, pair_idxs in interaction_groups[inter_type].items():
                     distr = interaction_distribution(u, inter_type, pair_idxs, group_name,
                                                      args.prefix, args.distribution_data)
 
-                    distributions[inter_type][group_name] = distr, pair_idxs
-
-            # fit the interactions
-            for inter_type in ['bonds', 'angles', 'dihedrals']:
-                for group_name, (data, atoms) in distributions[inter_type].items():
-                    fitter.fit_interaction(data, atoms, group_name, inter_type)
+                    # fit the interactions
+                    fitter.fit_interaction(distr, pair_idxs, group_name, inter_type)
 
             # assign each interaction type directly into the block.
             # Need to do this way to ensure, e.g. bonds/constraints are written properly

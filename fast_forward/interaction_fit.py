@@ -258,6 +258,11 @@ class InteractionFitter:
                                                             'fit_params': {'amp': gaussian_result.params['amplitude'],
                                                                            'center': gaussian_result.params['center'],
                                                                            'sigma': gaussian_result.params['sigma']}}
+    def _virtual_sites3_handler(self, data, group_name):
+        self.fit_parameters['virtual_sites3'][group_name] = {'params': [data[0][0], data[0][1]]}
+
+    def _virtual_sitesn_handler(self, data, group_name):
+        self.fit_parameters['virtual_sitesn'][group_name] = None
 
     def fit_to_gmx(self, inter_type, group_name, atoms):
 
@@ -321,13 +326,35 @@ class InteractionFitter:
                                                                            meta={"comment": group_name,
                                                                                  "group": group_name}))
 
+        elif inter_type == 'virtual_sites3':
+            parameters = self.fit_parameters['virtual_sites3'][group_name]['params']
+            self.interactions_dict['virtual_sites3'].append(Interaction(atoms=[atoms[0][0]],
+                                                                        # need + 1 on these atoms because otherwise
+                                                                        # index not converted
+                                                                        parameters=[atoms[0][1]+1,
+                                                                        atoms[0][2]+1,
+                                                                        atoms[0][3]+1,
+                                                                        2,
+                                                                        np.round(parameters[0],
+                                                                        self.precision),
+                                                                        np.round(parameters[1],
+                                                                        self.precision),
+                                                                        ],
+                                                                        meta={"comment": group_name}
+                                                                        ))
 
-
+        elif inter_type == 'virtual_sitesn':
+            pars = [1] + [i+1 for i in atoms[0][1:]]
+            self.interactions_dict['virtual_sitesn'].append(Interaction(atoms=[atoms[0][0]],
+                                                                        parameters=pars,
+                                                                        meta={"comment": group_name}))
 
     def fit_interaction(self, data, atoms, group_name, inter_type):
         func_dict = {'bonds': self._bonds_fitter,
                      'angles': self._angles_fitter,
-                     'dihedrals': self._dihedrals_fitter
+                     'dihedrals': self._dihedrals_fitter,
+                     'virtual_sites3': self._virtual_sites3_handler,
+                     'virtual_sitesn': self._virtual_sitesn_handler
                      }
         func_dict[inter_type](data, group_name)
         self.fit_to_gmx(inter_type, group_name, atoms)
