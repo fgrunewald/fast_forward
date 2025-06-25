@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import numba
 import networkx as nx
 from cgsmiles.resolve import MoleculeResolver
 from .map_file_parers import Mapping
@@ -87,7 +88,10 @@ def cgsmiles_to_mapping(univ, cgsmiles_strs, mol_names, mol_matching=True):
         for mol_idx in univ.mol_idxs_by_name[mol_name]:
             for bead in cg.nodes:
                 atoms = cg.nodes[bead]['graph'].nodes
-                mapped_atoms.append([_match[atom]+offset for atom in atoms])
+                # catches VS
+                if len(atoms) == 0:
+                    continue
+                mapped_atoms.append(numba.typed.List([_match[atom]+offset for atom in atoms]))
                 bead_idxs.append(bead_count)
                 bead_count += 1
                 # we only need to do this once per molecule type
@@ -104,4 +108,6 @@ def cgsmiles_to_mapping(univ, cgsmiles_strs, mol_names, mol_matching=True):
                                          atom=univ.atoms[_match[atom]].name)
 
             offset += len(mol_graph)
+    mapped_atoms = numba.typed.List(mapped_atoms)
+    bead_idxs = numba.typed.List(bead_idxs)
     return mapped_atoms, bead_idxs, mappings

@@ -95,9 +95,12 @@ def forward_map_indices(universe, mappings):
             idxs = mapping.bead_to_idx[bead]
             names = mapping.bead_to_atom[bead]
             atoms = _selector(residue.atoms, idxs, names)
-            mapped_atoms.append(atoms.indices)
+            mapped_atoms.append(numba.typed.List(atoms.indices))
             bead_idxs.append(total_beads)
             total_beads += 1
+
+    mapped_atoms = numba.typed.List(mapped_atoms)
+    bead_idxs = numba.typed.List(bead_idxs)
     return mapped_atoms, bead_idxs
 
 @njit(parallel=True)
