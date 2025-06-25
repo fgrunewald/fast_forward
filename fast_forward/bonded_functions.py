@@ -58,6 +58,31 @@ def _vs3fd(arr1, arr2, arr3, arr4):
     ab = np.array([fit.params["a"].value, fit.params["b"].value])
     return np.tile(ab, frames).reshape((frames, 2))
 
+
+def _vs3out_func(pars, x, positions):
+    vals = pars.valuesdict()
+    a = vals['a']
+    b = vals['b']
+    c = vals['c']
+
+    i, j, k = positions
+
+    r_ij = j - i
+    r_ik = k - i
+
+    r_predicted_vs = i + (a * r_ij) + (b * r_ik) + (c * np.cross(r_ij, r_ik))
+
+    return x - r_predicted_vs
+
+def _vs3out(arr1, arr2, arr3, arr4):
+    frames = arr1.shape[0]
+    fit_params = create_params(a=1, b=1, c=1)
+    pos_list = [arr2 / 10, arr3 / 10, arr4 / 10] # convert to nm
+    fit = minimize(_vs3out_func, fit_params, args=(arr1/10, pos_list,))
+    abc = np.array([fit.params["a"].value, fit.params["b"].value], fit.params["c"].value)
+    return np.tile(abc, frames).reshape((frames, 2))
+
+
 def _virtual_sitesn(*args):
     return None
 
@@ -65,6 +90,7 @@ NORMAL_FUNCS = {"angles": _fast_angle,
                 "bonds": _fast_pair_dists,
                 "constraints": _fast_pair_dists,
                 "dihedrals": _fast_dih,
-                "virtual_sites3": _vs3fd,
+                "virtual_sites3fd": _vs3fd,
+                "virtual_sites3out": _vs3out,
                 "virtual_sitesn": _virtual_sitesn
                }

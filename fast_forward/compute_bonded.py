@@ -4,8 +4,10 @@ from fast_forward.bonded_functions import NORMAL_FUNCS
 ARR_SHAPES = {'bonds': 1,
               'angles': 1,
               'dihedrals': 1,
-              'virtual_sites3': 2,
+              'virtual_sites3fd': 2,
+              'virtual_sites3out': 3
               }
+
 
 def compute_value_for_interaction(universe, inter_type, valid_pairs):
     nframes = universe.trajectory.n_frames

@@ -1,4 +1,3 @@
-
 from fast_forward.compute_bonded import compute_value_for_interaction
 import numpy as np
 
@@ -6,8 +5,9 @@ BINS_DICT = {"bonds": np.arange(0, 7, 0.01),
              "angles": np.arange(181),
              "dihedrals": np.arange(-180, 181)
              }
-
-VIRTUALSITE_TYPES = ['virtual_sitesn', 'virtual_sites3']
+VIRTUALSITE_TYPES = {'virtual_sitesn': {'1' : 'virtual_sitesn'},
+                     'virtual_sites3': {'2' : 'virtual_sites3fd',
+                                        '4' : 'virtual_sites3out'}}
 
 def interaction_distribution(u, inter_type, pair_idxs, group_name, prefix, save):
     time_series = compute_value_for_interaction(u, inter_type, pair_idxs)
@@ -16,7 +16,8 @@ def interaction_distribution(u, inter_type, pair_idxs, group_name, prefix, save)
                                                             inter_type=inter_type,
                                                             prefix=prefix),
                    time_series)
-    if inter_type not in VIRTUALSITE_TYPES:
+    # i.e. if inter_type not one of virtual_sitesn, virtual_sites3fd, etc.
+    if inter_type not in [v for subdict in VIRTUALSITE_TYPES.values() for v in subdict.values()]:
         probs, edges = np.histogram(time_series, density=True, bins=BINS_DICT[inter_type])
         center_points = edges[:-1] + np.diff(edges)/2.
         distr = np.transpose((center_points, probs))

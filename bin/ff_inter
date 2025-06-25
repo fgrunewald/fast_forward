@@ -88,9 +88,12 @@ def __main__():
             # calculate distributions for interaction
             if not args.itp_only:
                 guess_interactions(block)
-            interaction_groups = itp_to_ag(block, molname, u)
+            interaction_groups, initial_parameters = itp_to_ag(block, molname, u)
             for inter_type in RECOGNISED_INTERACTIONS:
                 for group_name, pair_idxs in interaction_groups[inter_type].items():
+                    # make sure we know which kind of virtual site we're dealing with
+                    if inter_type in VIRTUALSITE_TYPES.keys():
+                        inter_type = VIRTUALSITE_TYPES[inter_type].get(initial_parameters[inter_type][group_name][0])
                     distr = interaction_distribution(u, inter_type, pair_idxs, group_name,
                                                      args.prefix, args.distribution_data)
 
@@ -99,7 +102,6 @@ def __main__():
 
                     if inter_type in VIRTUALSITE_TYPES:
                         mass_redistribution(block, pair_idxs)
-
 
             # assign each interaction type directly into the block.
             # Need to do this way to ensure, e.g. bonds/constraints are written properly
