@@ -48,8 +48,6 @@ def main():
                             help='trajectory file (XTC/TRR/GRO/PDB ...)')
     file_group.add_argument('-s', dest='tpr', required=True, type=str,
                             help='tpr file (TPR)')
-    file_group.add_argument('-o', dest='outpath', type=str, 
-                            help='name of the mapped trajectory (XTC/GRO)')
     file_group.add_argument('-cgs', dest='cgsmiles_strs', type=str, nargs='*',
                             help='any number of cgsmiles strings.')
     file_group.add_argument('-cgsl', dest='cgsmiles_library', type=str,

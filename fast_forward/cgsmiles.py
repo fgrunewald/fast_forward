@@ -40,7 +40,10 @@ def find_one_graph_match(graph1, graph2):
                                      edge_match=edge_match)
 
     raw_matches = GM.subgraph_isomorphisms_iter()
-    mapping = next(raw_matches)
+    try:
+        mapping = next(raw_matches)
+    except StopIteration:
+        mapping = []
     return mapping
 
 def cgsmiles_to_mapping(univ, cgsmiles_strs, mol_names, mol_matching=True):
