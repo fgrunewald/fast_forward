@@ -292,34 +292,35 @@ class InteractionFitter:
             center, sigma = parameters
 
             if sigma < self.constraint_converter:
-                self.interactions_dict['bonds'].append(Interaction(atoms=atoms[0],
-                                                                   parameters=[1, center, sigma],
-                                                                   meta={"comment": group_name}))
+                for ag in atoms:
+                    self.interactions_dict['bonds'].append(Interaction(atoms=ag,
+                                                                       parameters=[1, center, sigma],
+                                                                       meta={"comment": group_name}))
             else:
-                self.interactions_dict['bonds'].append(Interaction(atoms=atoms[0],
-                                                                   parameters=[1, center, 10000],
-                                                                   meta={"ifdef": "FLEXIBLE", "comment": group_name}))
-                self.interactions_dict['constraints'].append(Interaction(atoms=atoms[0],
-                                                                         parameters=[1, center],
-                                                                         meta={"ifndef": "FLEXIBLE",
-                                                                               "comment": group_name}))
+                for ag in atoms:
+                    self.interactions_dict['bonds'].append(Interaction(atoms=ag,
+                                                                       parameters=[1, center, 10000],
+                                                                       meta={"ifdef": "FLEXIBLE", "comment": group_name}))
+                    self.interactions_dict['constraints'].append(Interaction(atoms=ag,
+                                                                             parameters=[1, center],
+                                                                             meta={"ifndef": "FLEXIBLE",
+                                                                                   "comment": group_name}))
         elif inter_type == 'angles':
             parameters = self.fit_parameters['angles'][group_name]
             center, sigma = parameters
 
             # empirically derived. if sigma too big, angles get very unstable.
-            if sigma > 150:
-                sigma = 150
+            sigma = min(sigma, 150)
 
             # empirically derived. For theta_0 > 160, significant ptl energy for type 10 at equilibrium, so enforce type 1.
             if float(center) < 160:
                 func_type_out = 10
             else:
                 func_type_out = 1
-
-            self.interactions_dict['angles'].append(Interaction(atoms=atoms[0],
-                                                                parameters=[func_type_out, center, sigma],
-                                                                meta={"comment": group_name}))
+            for ag in atoms:
+                self.interactions_dict['angles'].append(Interaction(atoms=ag,
+                                                                    parameters=[func_type_out, center, sigma],
+                                                                    meta={"comment": group_name}))
 
         elif inter_type == 'dihedrals':
 
@@ -327,25 +328,28 @@ class InteractionFitter:
             if isinstance(parameters, list):
                 center, sigma = parameters
                 center = np.round(np.degrees(center), self.precision)
+                sigma = min(sigma, 25)
 
-                self.interactions_dict['dihedrals'].append(Interaction(atoms=atoms[0],
-                                                                       parameters=[2, center, sigma],
-                                                                       meta={"comment": group_name}))
+                for ag in atoms:
+                    self.interactions_dict['dihedrals'].append(Interaction(atoms=ag,
+                                                                           parameters=[2, center, sigma],
+                                                                           meta={"comment": group_name}))
             else:
-                for i in parameters.values():
-                    # factors derived from the fitting directly have negligible effects (~10^-3/4),
-                    # scaling them helps increase the strength of dihedral in the final interaction
-                    k = - i[0] * self.dihedral_scaling
-                    x0_deg = np.degrees(i[1])
-                    n = i[2]
-                    self.interactions_dict['dihedrals'].append(Interaction(atoms=atoms[0],
-                                                                           parameters=[9,  # function type
-                                                                                       np.round(x0_deg, self.precision), # center
-                                                                                       np.round(k, self.precision), # force constant
-                                                                                       int(n) # multiplicity
-                                                                                       ],
-                                                                           meta={"comment": group_name,
-                                                                                 "group": group_name}))
+                for ag in atoms:
+                    for i in parameters.values():
+                        # factors derived from the fitting directly have negligible effects (~10^-3/4),
+                        # scaling them helps increase the strength of dihedral in the final interaction
+                        k = - i[0] * self.dihedral_scaling
+                        x0_deg = np.degrees(i[1])
+                        n = i[2]
+                        self.interactions_dict['dihedrals'].append(Interaction(atoms=ag,
+                                                                               parameters=[9,  # function type
+                                                                                           np.round(x0_deg, self.precision), # center
+                                                                                           np.round(k, self.precision), # force constant
+                                                                                           int(n) # multiplicity
+                                                                                           ],
+                                                                               meta={"comment": group_name,
+                                                                                     "group": group_name}))
 
 
 
