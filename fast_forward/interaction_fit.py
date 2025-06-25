@@ -5,6 +5,7 @@ functions for fitting interaction distributions
 
 import numpy as np
 from lmfit.models import GaussianModel
+from lmfit import Parameters
 from MDAnalysis.units import constants
 import lmfit
 from collections import defaultdict
@@ -42,6 +43,16 @@ def _gaussian_fitter(x, y, initial_center, initial_sigma, initial_amplitude):
 
     return gaussian_result
 
+def _gaussian_generator(x, params):
+
+    mod = GaussianModel(x=x)
+    pars = Parameters()
+    pars.add("center", params['center'].value)
+    pars.add("sigma", params['sigma'].value)
+    pars.add("amplitude", params['amplitude'].value)
+    fitted_distribution = mod.eval(pars, x=x)
+
+    return fitted_distribution
 
 class InteractionFitter:
     """
@@ -71,6 +82,7 @@ class InteractionFitter:
         # this will store the interactions
         self.interactions_dict = defaultdict(list)
         self.fit_parameters = defaultdict(dict)
+        self.plot_parameters = defaultdict(dict)
 
     def _bonds_fitter(self, data, group_name):
         """
@@ -98,9 +110,12 @@ class InteractionFitter:
         center = np.round(initial_center / 10, self.precision)
         sigma = np.round((self.kb * self.temperature) / ((initial_sigma / 10) ** 2), self.precision)
 
-        self.fit_parameters['bonds'][group_name] = {'data': data,
-                                                    'distribution_params': [center, sigma],
-                                                    'fit_params': [center, initial_sigma]}
+        self.fit_parameters['bonds'][group_name] = [center, sigma]
+
+        self.plot_parameters['bonds'][group_name] = {'x': x,
+                                                     'Distribution': y,
+                                                     'Fitted': _gaussian_generator(x,
+                                                                                   gaussian_fit.params)}
 
     def _angles_fitter(self, data, group_name):
         """
@@ -115,8 +130,12 @@ class InteractionFitter:
         """
         x, y = data.T
         gaussian_fit = _gaussian_fitter(x, y,
-                                        initial_center=dict(value=x[y.argmax()], min=x[y.argmax()] - 20, max=x[y.argmax()] + 20),
-                                        initial_sigma=dict(value=x.std(), min=x.std() / 4, max=x.std() * 1.5),
+                                        initial_center=dict(value=x[y.argmax()],
+                                                            min=x[y.argmax()] - 20,
+                                                            max=x[y.argmax()] + 20),
+                                        initial_sigma=dict(value=x.std(),
+                                                           min=x.std() / 4,
+                                                           max=x.std() * 1.5),
                                         initial_amplitude=dict(value=y.max(), min=0)
                                         )
 
@@ -128,9 +147,11 @@ class InteractionFitter:
         var = np.deg2rad(initial_sigma) ** 2
         sigma = np.round((self.kb * self.temperature) / (sin_term * var), self.precision)
 
-        self.fit_parameters['angles'][group_name] = {'data': data,
-                                                     'distribution_params': [center, sigma],
-                                                     'fit_params': [center, initial_sigma]}
+        self.fit_parameters['angles'][group_name] = [center, sigma]
+
+        self.plot_parameters['angles'][group_name] = {'x': x,
+                                                     'Distribution': y,
+                                                     'Fitted': _gaussian_generator(x, gaussian_fit.params)}
 
     # Fitting function for proper dihedrals
     def _proper_dihedral_model_function(self, params, x):
@@ -242,9 +263,12 @@ class InteractionFitter:
                 x0 = best_params[f'x0_{i}'].value
                 n = int(best_params[f'n{i}'].value)  # Ensure n is integer
                 pars_out.append([best_params[f'k{i}'].value, x0, n])
-            self.fit_parameters['dihedrals'][group_name] = {'data': data,
-                                                            'distribution_params': {i: j for i, j in enumerate(pars_out)},
-                                                            'fit_params': pars_out}
+            self.fit_parameters['dihedrals'][group_name] = {i: j for i, j in enumerate(pars_out)}
+
+            self.plot_parameters['dihedrals'][group_name] = {'x': np.degrees(x),
+                                                             'Distribution': y,
+                                                             'Fitted': self._proper_dihedral_model_function(best_params,
+                                                                                                            x)}
 
         else:
             # transform the centre back into the correct domain after fitting to account for periodicity.
@@ -253,21 +277,25 @@ class InteractionFitter:
             center = np.round(c0, self.precision)
             sigma = np.round((self.kb * self.temperature) / ((gaussian_result.params['sigma']) ** 2), self.precision)
 
-            self.fit_parameters['dihedrals'][group_name] = {'data': data,
-                                                            'distribution_params': [center, sigma],
-                                                            'fit_params': {'amp': gaussian_result.params['amplitude'],
-                                                                           'center': gaussian_result.params['center'],
-                                                                           'sigma': gaussian_result.params['sigma']}}
+            self.fit_parameters['dihedrals'][group_name] = [center, sigma]
+  
+            x_plot = np.degrees((x+(2*np.pi)) % (2*np.pi) - np.pi)
+            fitted_improper_plot = _gaussian_generator(x, gaussian_result.params)[np.argsort(x_plot)]
+            self.plot_parameters['dihedrals'][group_name] = {'x': x_plot,
+                                                             'Distribution': y,
+                                                             'Fitted': fitted_improper_plot}
+  
     def _virtual_sites3_handler(self, data, group_name):
         self.fit_parameters['virtual_sites3'][group_name] = {'params': [data[0][0], data[0][1]]}
 
     def _virtual_sitesn_handler(self, data, group_name):
         self.fit_parameters['virtual_sitesn'][group_name] = None
 
+
     def fit_to_gmx(self, inter_type, group_name, atoms):
 
         if inter_type == 'bonds':
-            parameters = self.fit_parameters['bonds'][group_name]['distribution_params']
+            parameters = self.fit_parameters['bonds'][group_name]
             center, sigma = parameters
 
             if sigma < self.constraint_converter:
@@ -283,7 +311,7 @@ class InteractionFitter:
                                                                          meta={"ifndef": "FLEXIBLE",
                                                                                "comment": group_name}))
         elif inter_type == 'angles':
-            parameters = self.fit_parameters['angles'][group_name]['distribution_params']
+            parameters = self.fit_parameters['angles'][group_name]
             center, sigma = parameters
 
             # empirically derived. if sigma too big, angles get very unstable.
@@ -302,7 +330,7 @@ class InteractionFitter:
 
         elif inter_type == 'dihedrals':
 
-            parameters = self.fit_parameters['dihedrals'][group_name]['distribution_params']
+            parameters = self.fit_parameters['dihedrals'][group_name]
             if isinstance(parameters, list):
                 center, sigma = parameters
                 center = np.round(np.degrees(center), self.precision)

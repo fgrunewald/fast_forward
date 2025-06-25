@@ -43,7 +43,8 @@ def __main__():
     parser.add_argument('-pref', type=str, dest="prefix", help="common prefix to filename", default="")
     parser.add_argument('-i', type=str, dest="itp_files", help="itp file", nargs='*')
     parser.add_argument('-dists', default=False, action='store_true',
-                        dest="distribution_data", help="Save text files with time series and distribution data for interactions")
+                        dest="distribution_data",
+                        help="Save text files with time series and distribution data for interactions")
     parser.add_argument('-plots', default=False, action="store_true",
                         dest="plots", help="Save the fits of bonded interactions")
     parser.add_argument('-plot-data', default=False, action="store_true",
@@ -107,12 +108,13 @@ def __main__():
 
             # make plots if we want to
             if args.plots:
-                make_distribution_plot(fitter.fit_parameters,
+                make_distribution_plot(fitter.plot_parameters,
                                        args.plot_data)
 
             # write out the itp
             itp_writer(molname,
-                       ff.blocks[molname], command_used=' '.join(sys.argv),
+                       ff.blocks[molname],
+                       command_used=' '.join(sys.argv),
                        )
 
     # write out using DeferredFileWriter to back up any existing files of the same names
