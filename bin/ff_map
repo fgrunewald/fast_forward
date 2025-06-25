@@ -55,8 +55,10 @@ def main():
     file_group.add_argument('-cgsl', dest='cgsmiles_library', type=str,
                             help='any number of cgsmiles strings.')
     file_group.add_argument('-m', dest='map_file', type=str, default="",
-                            help='.mapping file or path to directory of .map files')
-
+                             help='.mapping file or path to directory of .map files')
+    file_group.add_argument('-o', dest='outpath', type=str,
+                            help='name of the mapped trajectory (XTC/GRO). If trajectory, first frame will also be '
+                                 'written as a separate gro file')
 
     mapping_group = parser.add_argument_group('Mapping Options')
     mapping_group.add_argument('-mode', dest='mode', required=False, type=str,
@@ -164,11 +166,18 @@ def main():
 
     if file_extension in ["xtc", "trr"]:
         cg_beads = cg_universe.atoms
-        with mda.Writer(args.outpath,
+        outpath = pathlib.Path(args.outpath)
+        with mda.Writer(str(outpath),
                         multiframe=True,
                         n_atoms=len(cg_universe.atoms)) as mapped:
             for time_step in cg_universe.trajectory:
                 mapped.write(cg_beads)
+
+        # write first frame as gro file
+        with mda.Writer(outpath.stem+'.gro',
+                        multiframe=False,
+                        n_atoms=len(cg_universe.atoms)) as first_frame:
+            first_frame.write(cg_beads)
     else:
         cg_universe.atoms.positions = cg_universe.trajectory.coordinate_array[0]
         cg_beads = cg_universe.atoms

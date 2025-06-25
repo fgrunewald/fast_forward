@@ -1,0 +1,130 @@
+#!/usr/bin/env python3
+"""
+Main exe for scoring simulations against mapped trajectories
+"""
+import argparse
+from glob import glob
+import numpy as np
+import MDAnalysis as mda
+import vermouth.forcefield
+import fast_forward
+from fast_forward.compute_bonded import compute_value_for_interaction
+from fast_forward.itp_to_ag import itp_to_ag
+from fast_forward.itp_parser_sub import read_itp
+from fast_forward.interaction_plots import make_distribution_plot
+from collections import defaultdict
+
+VERSION = 'fast_forward version {}'.format(fast_forward.__version__)
+
+
+def hellinger(p,q):
+    return np.round(np.sqrt(np.sum(np.power((np.sqrt(p) - np.sqrt(q)),2))) / np.sqrt(2),2)
+
+
+def report(h_score_dict, exclude_outliers=False):
+    buff = ''
+
+    buff += " [ Interaction Distribution Report ]\n"
+    buff += f"   Overall Score : {{mean:.2f}} ± {{std:.2f}}\n\n"
+    buff += " Score guide:\n"
+    buff += "   0.0-0.3 : good\n"
+    buff += "   0.3-0.5 : ok\n"
+    buff += "   0.5-1.0 : bad\n"
+
+    if exclude_outliers:
+        buff += "\n\tNB: values over 0.5 have been excluded from the above summary value\n\n"
+    else:
+        buff += '\n'
+
+    buff += " Interaction Scores:\n"
+    buff += " 0 - identical, 1 - no overlap\n\n"
+    h_score = []
+    for interaction_type in h_score_dict.keys():
+        buff += f" {interaction_type} \n"
+        for atom_group, score in h_score_dict[interaction_type].items():
+            if exclude_outliers:
+                if score < 0.5:  # arbitrary cut off for now
+                    buff += f"\t{atom_group:20s}: {score:.2f}\n"
+                    h_score.append(score)
+                else:
+                    buff += f"\t{atom_group:20s}: {score:.2f} (excluded)\n"
+            else:
+                buff += f"\t{atom_group:20s}: {score:.2f}\n"
+                h_score.append(score)
+
+    printable = buff.format(mean=np.array(h_score).mean(),
+                      std=np.array(h_score).std())
+
+    print(printable)
+    with open('report.out', 'w') as fout:
+        fout.writelines(printable)
+
+
+BINS_DICT = {"bonds": np.arange(0, 7, 0.01),
+             "angles": np.arange(181),
+             "dihedrals": np.arange(-180, 181)
+             }
+
+
+def __main__():
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter,)
+    parser.add_argument('-f', type=str, dest="trajfile", help="simulated trajectory file")
+    parser.add_argument('-s', type=str, dest="tprfile", help="simulated tpr file", default=None)
+    parser.add_argument('-i', type=str, dest="itp_files", help="itp file", nargs='*')
+    parser.add_argument('-d', type=str, dest='reference',
+                        help="Path to directory with reference distributions")
+    parser.add_argument('-plots', default=False, action='store_true', dest="plots",
+                        help="make plots comparing distributions")
+    parser.add_argument('-outliers', default=False, action='store_true', dest='exclude_outliers',
+                        help='exclude outliers from overall score')
+    parser.add_argument('-plot-data', default=False, action='store_true', dest="plot_data",
+                        help='save data for making plots as single pickle file')
+
+    args = parser.parse_args()
+
+    distribution_files = glob(f'{args.reference}/*distr.dat')
+
+    # load trajectory
+    if args.tprfile:
+        u = mda.Universe(args.tprfile, args.trajfile, in_memory=True)
+    else:
+        u = mda.Universe(args.trajfile, in_memory=True)
+
+    plot_data = defaultdict(dict)
+    # if itp file is provided use it
+    if args.itp_files:
+        ff = vermouth.forcefield.ForceField("dummy")
+        for file_handle in args.itp_files:
+            with open(file_handle) as _file:
+                lines = _file.readlines()
+        read_itp(lines, ff)
+
+        h_score_dict = {'bonds': {},
+                        'angles': {},
+                        'dihedrals': {}}
+        # loop over molecules
+        for molname, block in ff.blocks.items():
+            interaction_groups = itp_to_ag(block, molname, u)
+            for inter_type in ['bonds', 'angles', 'dihedrals']:
+                for group_name, pair_idxs in interaction_groups[inter_type].items():
+                    time_series = compute_value_for_interaction(u, inter_type, pair_idxs)
+                    # calculate simulation distribution
+                    probs, edges = np.histogram(time_series, density=True, bins=BINS_DICT[inter_type])
+                    # read in reference distribution
+                    try:
+                        reference_data = np.loadtxt([i for i in distribution_files if group_name in i and inter_type in i][0])
+                    except IndexError:
+                        print(f"{group_name} file not found!")
+                        continue
+                    # calculate hellinger distance between simulated and reference distributions
+                    score = hellinger(probs/probs.sum(), reference_data.T[1] / reference_data.T[1].sum())
+                    h_score_dict[inter_type][group_name] = score
+
+                    plot_data[inter_type][group_name] = {"x": reference_data.T[0],
+                                                         "Reference": reference_data.T[1],
+                                                         'Simulated': probs}
+        if args.plots:
+            make_distribution_plot(plot_data, args.plot_data)
+        report(h_score_dict, args.exclude_outliers)
+
+__main__()
