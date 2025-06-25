@@ -132,8 +132,6 @@ def main():
     n_frames = len(init_universe.trajectory)
 
     print("INFO - Mapping universe - positions")
-    mapped_atoms = numba.typed.List(mapped_atoms)
-    bead_idxs = numba.typed.List(bead_idxs)
     # extract the position array from universe
     # if it's not a trajectory we have to emulate
     # a single frame
