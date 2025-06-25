@@ -17,69 +17,17 @@ import networkx as nx
 import MDAnalysis as mda
 from MDAnalysis import transformations
 from pysmiles import PTE
-from pysmiles.smiles_helper import correct_aromatic_rings
+from pysmiles.smiles_helper import correct_aromatic_rings, increment_bond_orders
 from fast_forward.hydrogen import BUILD_HYDRO, find_helper_atoms
 from tqdm import tqdm
 
-def guess_bond_order(element_1, element_2, bond_length):
-    # Bond lengths taken from the CCCBDB (Release 22 (May 2022))
-    # Ranges were manually adjusted to cover the areas
-    # N:N bond length range is a guess based on one  submitted result
-    bond_order = 1
-    if element_1 == element_2 == 'C':
-        if 0.1450 <= bond_length  <= 0.1596:
-            bond_order = 1
-        elif 0.1370 <= bond_length  <= 0.1450:
-            bond_order = 1.5
-        elif 0.1269 <= bond_length  <= 0.1369:
-            bond_order = 2
-        elif 0.1187 <= bond_length  <= 0.1268:
-            bond_order = 3
-    elif element_1 == "N" and element_2 == "C" or element_2 == "N" and element_1 == "C":
-        if 0.1351 <= bond_length  <= 0.1492:
-            bond_order = 1
-        elif 0.1331 <= bond_length  <= 0.1350:
-            bond_order = 1.5
-        elif 0.1178 <= bond_length  <= 0.1330:
-            bond_order = 2
-        elif 0.1140 <= bond_length  <= 0.1177:
-            bond_order = 3
-    elif element_1 == "O" and element_2 == "C" or element_2 == "O" and element_1 == "C":
-        if 0.1320 <= bond_length  <= 0.1448:
-            bond_order = 1
-        elif 0.1135 <= bond_length  <= 0.1272:
-            bond_order = 2
-        elif 0.1128 <= bond_length  <= 0.1134:
-            bond_order = 3
-    elif element_1 == "O" and element_2 == "N" or element_2 == "O" and element_1 == "N":
-        if 0.1238 <= bond_length  <= 0.1507:
-            bond_order = 1
-        elif 0.1060 <= bond_length  <= 0.1237:
-            bond_order = 2
-    elif element_1 == "N" and element_2 == "N" or element_2 == "N" and element_1 == "N":
-        if 0.1351 <= bond_length  <= 0.2236:
-            bond_order = 1
-        elif 0.1253 <= bond_length  <= 0.1350:
-            bond_order = 1.5
-        elif 0.1139 <= bond_length  <= 0.1252:
-            bond_order = 2
-    elif element_1 == "S" and element_2 == "C" or element_2 == "S" and element_1 == "C":
-        if 0.1676 <= bond_length  <= 0.1849:     # Check range again, maybe too much
-            bond_order = 1
-        elif 0.1553 <= bond_length  <= 0.1675:
-            bond_order = 2
-    return bond_order
-
 def assign_order(g):
-    nx.set_node_attributes(g, False, 'aromatic')
-    for n1, n2 in g.edges:
-        order = guess_bond_order(g.nodes[n1]['element'],
-                                 g.nodes[n2]['element'],
-                                 g.edges[(n1, n2)]['length'])
-        g.edges[(n1,n2)]['order'] = order
-        if order == 1.5:
+    increment_bond_orders(g)
+    for n1, n2, order in g.edges(data='order'):
+        if order > 1:
             g.nodes[n1]['aromatic'] = True
             g.nodes[n2]['aromatic'] = True
+    correct_aromatic_rings(g)
     return g
 
 class UniverseHandler(mda.Universe):
@@ -157,8 +105,6 @@ class UniverseHandler(mda.Universe):
             nx.set_edge_attributes(g, lengths, 'length')
             nx.set_node_attributes(g, dict(zip(molecule.indices, eles)) ,'element')
             g=assign_order(g)
-            # we have to rekekulize the graph according to pysmiles rules
-            correct_aromatic_rings(g)
             mol_graphs[mol_name] = g
         return mol_graphs
 
