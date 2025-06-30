@@ -55,7 +55,7 @@ def _vs3fd(arr1, arr2, arr3, arr4):
     pos_list = [arr2 / 10, arr3 / 10, arr4 / 10] # convert to nm
     fit = minimize(_vs3fd_func, fit_params, args=(arr1/10, pos_list,))
     ab = np.array([fit.params["a"].value, fit.params["b"].value])
-    return ab
+    return np.tile(ab, arr1.shape[0])
 
 
 def _vs3out_func(pars, x, positions):
@@ -78,7 +78,7 @@ def _vs3out(arr1, arr2, arr3, arr4):
     pos_list = [arr2 / 10, arr3 / 10, arr4 / 10] # convert to nm
     fit = minimize(_vs3out_func, fit_params, args=(arr1/10, pos_list,))
     abc = np.array([fit.params["a"].value, fit.params["b"].value, fit.params["c"].value])
-    return abc
+    return np.tile(abc, arr1.shape[0])
 
 
 def _virtual_sitesn(*args):
