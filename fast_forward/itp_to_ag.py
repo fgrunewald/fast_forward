@@ -26,6 +26,7 @@ def itp_to_ag(block, mol_name, universe):
     grouped indices corresponding to the atoms in universe.
     """
     indices_dict = defaultdict(dict)
+    initial_parameters = defaultdict(dict)
     for inter_type in block.interactions:
         for inter in block.interactions[inter_type]:
             atoms = inter.atoms
@@ -34,5 +35,6 @@ def itp_to_ag(block, mol_name, universe):
                 indices = find_indices(universe, atoms, mol_name, natoms=len(block.nodes))
                 old_indices = indices_dict[inter_type].get(group, [])
                 indices_dict[inter_type][group] = indices + old_indices
+                initial_parameters[inter_type][group] = inter.parameters
 
-    return indices_dict
+    return indices_dict, initial_parameters
