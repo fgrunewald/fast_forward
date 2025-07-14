@@ -18,6 +18,10 @@ tests/test_data/gen_itp/output/*.itp
 **/htmlcov
 .idea
 
-docs/build/
-docs/source/api/
-docs/source/.doctrees
+doc/build
+doc/source/api
+doc/source/.doctrees
+
+/build/
+/AUTHORS
+/ChangeLog

@@ -1,0 +1,1 @@
+ff_map -f BENZ.gro -s BENZ.tpr -cgs "{[#TC5]1[#TC5][#TC5]1}.{#TC5=[$]cc[$]}" -mols "smiles_molecule" -o test.gro

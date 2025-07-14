@@ -219,4 +219,4 @@ def _dih(r1, r2, r3):
         dih = - dih
     return dih
 
-dihedral_angle = jit(_dih)
+dihedral_angle = jit(_dih, nopython=True)
