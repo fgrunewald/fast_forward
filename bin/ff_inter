@@ -85,7 +85,7 @@ def __main__():
             # calculate distributions for interaction
             if not args.itp_only:
                 guess_interactions(block)
-            interaction_groups = itp_to_ag(block, molname, u)
+            interaction_groups, remainders = itp_to_ag(block, molname, u)
             distributions = {"bonds": {}, "angles": {}, "dihedrals": {}}
             for inter_type in ['bonds', 'angles', 'dihedrals']:
                 for group_name, pair_idxs in interaction_groups[inter_type].items():
@@ -102,7 +102,7 @@ def __main__():
             # assign each interaction type directly into the block.
             # Need to do this way to ensure, e.g. bonds/constraints are written properly
             for inter_type, interactions in fitter.interactions_dict.items():
-                block.interactions[inter_type] = interactions
+                block.interactions[inter_type] = interactions + remainders.get(inter_type, [])
 
             # make plots if we want to
             if args.plots:

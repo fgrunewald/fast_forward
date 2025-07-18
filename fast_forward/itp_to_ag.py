@@ -4,6 +4,7 @@ groups of an MDAnalysis Universe.
 """
 import numpy as np
 from collections import defaultdict
+from vermouth.molecule import Interaction
 
 def find_indices(universe, atoms, molname, natoms):
     """
@@ -26,6 +27,7 @@ def itp_to_ag(block, mol_name, universe):
     grouped indices corresponding to the atoms in universe.
     """
     indices_dict = defaultdict(dict)
+    remainders = defaultdict(list)
     for inter_type in block.interactions:
         for inter in block.interactions[inter_type]:
             atoms = inter.atoms
@@ -34,5 +36,7 @@ def itp_to_ag(block, mol_name, universe):
                 indices = find_indices(universe, atoms, mol_name, natoms=len(block.nodes))
                 old_indices = indices_dict[inter_type].get(group, [])
                 indices_dict[inter_type][group] = indices + old_indices
+            else:
+                remainders[inter_type].extend([Interaction(inter.atoms, inter.parameters, meta={})])
 
-    return indices_dict
+    return indices_dict, remainders
