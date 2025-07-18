@@ -58,6 +58,8 @@ def __main__():
                         help='Scale factor for strength of proper dihedral terms from fit to potential')
     parser.add_argument('-itp-only', default=False, action="store_true",
                         dest="itp_only", help="Use only interactions written into itp already, don't identify any more")
+    parser.add_argument('-no-overwrite', default=False, action='store_true',
+                        dest='no_overwrite', help="Don't overwrite input itps. Useful for extracting interactions only.")
 
     args = parser.parse_args()
 
@@ -115,7 +117,8 @@ def __main__():
                        command_used=' '.join(sys.argv),
                        )
 
-    # write out using DeferredFileWriter to back up any existing files of the same names
-    DeferredFileWriter().write()
+    if not args.no_overwrite:
+        # write out using DeferredFileWriter to back up any existing files of the same names
+        DeferredFileWriter().write()
 
 __main__()
