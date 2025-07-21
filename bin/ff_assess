@@ -104,7 +104,7 @@ def __main__():
                         'dihedrals': {}}
         # loop over molecules
         for molname, block in ff.blocks.items():
-            interaction_groups = itp_to_ag(block, molname, u)
+            interaction_groups, _ = itp_to_ag(block, molname, u)
             for inter_type in ['bonds', 'angles', 'dihedrals']:
                 for group_name, pair_idxs in interaction_groups[inter_type].items():
                     time_series = compute_value_for_interaction(u, inter_type, pair_idxs)
