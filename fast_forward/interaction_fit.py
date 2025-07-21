@@ -43,9 +43,20 @@ def _gaussian_fitter(x, y, initial_center, initial_sigma, initial_amplitude):
 
     return gaussian_result
 
-def _gaussian_generator(x, c, s, a):
+def _gaussian_generator(x, params):
     """
-    Generate a gaussian function across x with periodicity
+    Generate a gaussian function from fitted parameters
+    """
+    mod = GaussianModel(x=x)
+    pars = Parameters()
+    pars.add("center", params['center'].value)
+    pars.add("sigma", params['sigma'].value)
+    pars.add("amplitude", params['amplitude'].value)
+    fitted_distribution = mod.eval(pars, x=x)
+    return fitted_distribution
+def _periodic_gaussian_generator(x, c, s, a):
+    """
+    Generate a gaussian function from fitted parameters across x with periodicity
     """
 
     terms = 10
@@ -281,10 +292,10 @@ class InteractionFitter:
             self.fit_parameters['dihedrals'][group_name] = [center, sigma]
 
             x_plot = np.degrees(((x+np.pi) % (2*np.pi)) - np.pi)
-            fitted_improper_plot = _gaussian_generator(x,
-                                                       c0,
-                                                       gaussian_result.params['sigma'].value,
-                                                       gaussian_result.params['amplitude'].value)
+            fitted_improper_plot = _periodic_gaussian_generator(x,
+                                                                c0,
+                                                                gaussian_result.params['sigma'].value,
+                                                                gaussian_result.params['amplitude'].value)
             self.plot_parameters['dihedrals'][group_name] = {'x': x_plot,
                                                              'Distribution': y,
                                                              'Fitted': fitted_improper_plot}
