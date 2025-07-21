@@ -37,6 +37,6 @@ def itp_to_ag(block, mol_name, universe):
                 old_indices = indices_dict[inter_type].get(group, [])
                 indices_dict[inter_type][group] = indices + old_indices
             else:
-                remainders[inter_type].extend([Interaction(inter.atoms, inter.parameters, meta={})])
+                remainders[inter_type].extend([Interaction(inter.atoms, inter.parameters, meta=inter.meta)])
 
     return indices_dict, remainders
