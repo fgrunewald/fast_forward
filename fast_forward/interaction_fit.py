@@ -296,7 +296,7 @@ class InteractionFitter:
                                                                 c0,
                                                                 gaussian_result.params['sigma'].value,
                                                                 gaussian_result.params['amplitude'].value)
-            self.plot_parameters['dihedrals'][group_name] = {'x': x_plot,
+            self.plot_parameters['dihedrals'][group_name] = {'x': x_plot[np.argsort(x_plot)],
                                                              'Distribution': y,
                                                              'Fitted': fitted_improper_plot}
 
