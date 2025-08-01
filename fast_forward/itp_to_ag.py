@@ -3,10 +3,8 @@ Extract interactions pairs from itp and convert to atom
 groups of an MDAnalysis Universe.
 """
 from collections import defaultdict
-
 import numpy as np
 import networkx as nx
-
 
 def find_indices(universe,
                  atoms,
@@ -65,20 +63,19 @@ def itp_to_ag(block, mol_name, universe):
 
     indices_dict = defaultdict(dict)
     initial_parameters = defaultdict(dict)
-
     for inter_type in block.interactions:
         for inter in block.interactions[inter_type]:
             atoms = inter.atoms
             group = inter.meta.get("comment", None)
-
-            indices = find_indices(universe,
-                                   atoms,
-                                   match_attr,
-                                   match_values,
-                                   natoms=len(block.nodes))
-            old_indices = indices_dict[inter_type].get(group, [])
-            indices_dict[inter_type][group] = indices + old_indices
-            initial_parameters[inter_type][group] = inter.parameters
+            if group:
+                indices = find_indices(universe,
+                                       atoms,
+                                       match_attr,
+                                       match_values,
+                                       natoms=len(block.nodes))
+                old_indices = indices_dict[inter_type].get(group, [])
+                indices_dict[inter_type][group] = indices + old_indices
+                initial_parameters[inter_type][group] = inter.parameters
 
     return indices_dict, initial_parameters
 

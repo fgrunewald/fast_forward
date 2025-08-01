@@ -58,7 +58,6 @@ def _periodic_gaussian_generator(x, c, s, a):
     """
     Generate a gaussian function from fitted parameters across x with periodicity
     """
-
     terms = 10
     period = 2*np.pi
     y = np.zeros_like(x)
@@ -290,7 +289,6 @@ class InteractionFitter:
             sigma = np.round((self.kb * self.temperature) / ((gaussian_result.params['sigma']) ** 2), self.precision)
 
             self.fit_parameters['dihedrals'][group_name] = [center, sigma]
-
 
             x_plot = np.degrees(((x+np.pi) % (2*np.pi)) - np.pi)
             fitted_improper_plot = _periodic_gaussian_generator(x,
