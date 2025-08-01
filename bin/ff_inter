@@ -26,8 +26,9 @@ from fast_forward.itp_to_ag import itp_to_ag
 from fast_forward.itp_parser_sub import read_itp, guess_interactions
 from fast_forward.interaction_fit import InteractionFitter
 from fast_forward.interactions_to_itp import itp_writer
-from fast_forward.interaction_distribution import interaction_distribution
+from fast_forward.interaction_distribution import interaction_distribution, VIRTUALSITE_TYPES, RECOGNISED_INTERACTIONS
 from fast_forward.interaction_plots import make_distribution_plot
+from fast_forward.virtual_site_mass import mass_redistribution
 from vermouth.file_writer import DeferredFileWriter
 
 VERSION = 'fast_forward version {}'.format(fast_forward.__version__)
@@ -87,19 +88,22 @@ def __main__():
             # calculate distributions for interaction
             if not args.itp_only:
                 guess_interactions(block)
-            interaction_groups, remainders = itp_to_ag(block, molname, u)
-            distributions = {"bonds": {}, "angles": {}, "dihedrals": {}}
-            for inter_type in ['bonds', 'angles', 'dihedrals']:
+
+            interaction_groups, initial_parameters = itp_to_ag(block, molname, u)
+            for inter_type in RECOGNISED_INTERACTIONS:
+
                 for group_name, pair_idxs in interaction_groups[inter_type].items():
+                    # make sure we know which kind of virtual site we're dealing with
+                    if inter_type in VIRTUALSITE_TYPES.keys():
+                        inter_type = VIRTUALSITE_TYPES[inter_type].get(initial_parameters[inter_type][group_name][0])
                     distr = interaction_distribution(u, inter_type, pair_idxs, group_name,
                                                      args.prefix, args.distribution_data)
 
-                    distributions[inter_type][group_name] = distr, pair_idxs
+                    # fit the interactions
+                    fitter.fit_interaction(distr, pair_idxs, group_name, inter_type)
 
-            # fit the interactions
-            for inter_type in ['bonds', 'angles', 'dihedrals']:
-                for group_name, (data, atoms) in distributions[inter_type].items():
-                    fitter.fit_interaction(data, atoms, group_name, inter_type)
+                    if inter_type in VIRTUALSITE_TYPES:
+                        mass_redistribution(block, pair_idxs)
 
             # assign each interaction type directly into the block.
             # Need to do this way to ensure, e.g. bonds/constraints are written properly

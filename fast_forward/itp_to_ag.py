@@ -2,20 +2,45 @@
 Extract interactions pairs from itp and convert to atom
 groups of an MDAnalysis Universe.
 """
-import numpy as np
 from collections import defaultdict
-from vermouth.molecule import Interaction
 
-def find_indices(universe, atoms, molname, natoms):
+import numpy as np
+import networkx as nx
+
+
+def find_indices(universe,
+                 atoms,
+                 match_attr,
+                 match_values,
+                 natoms):
     """
-    Find the atoms indices for all molecules
-    with moleculename molname in universe and
-    return list of indices.
+    Given a universe select all atoms that match 
+    with the value of `match_attr` one or more entries in
+    `match_values`. Subsequently, return indices of all
+    multiples of the indices defined in atoms under the
+    assumption that a single molecule has `natoms`.
+
+    Parameters
+    ----------
+    universe: mda.Universe
+    atoms: list[int]
+    match_attr: abc.hashable
+    match_values: list[abc.hashable]
+    natoms: int
+
+    Returns
+    -------
+    list[int]
     """
     indices = []
     atoms = np.array(atoms)
-    mol_atoms = universe.atoms[universe.atoms.moltypes == molname]
-    n_mols = len(set(mol_atoms.molnums))
+    mol_atoms = universe.atoms[np.isin(getattr(universe.atoms, match_attr), match_values)]
+    if len(mol_atoms) % natoms != 0 and len(mol_atoms) != 0:
+        msg = ("The number of atoms of the target molecule"
+               "does not match a integer multiple of atoms"
+               "selected from the universe.")
+        raise IndexError(msg)
+    n_mols = len(mol_atoms) // natoms
     for idx in range(0, n_mols):
         pairs = mol_atoms.indices[atoms + idx * natoms]
         indices.append(pairs)
@@ -26,17 +51,34 @@ def itp_to_ag(block, mol_name, universe):
     Iterate over interactions in itp file and return dict of
     grouped indices corresponding to the atoms in universe.
     """
+    # by default we try to match the molecule types
+    has_molnums = hasattr(universe.atoms, "moltypes")
+    match_attr = "moltypes"
+    match_values = [mol_name]
+    # if we don't have molecule types we go by residues
+    # this requires there to be no overlap between the
+    # target and other molecules
+    if not has_molnums:
+        resnames = nx.get_node_attributes(block, "resname")
+        match_values = list(set(resnames.values()))
+        match_attr = "resnames"
+
     indices_dict = defaultdict(dict)
-    remainders = defaultdict(list)
+    initial_parameters = defaultdict(dict)
+
     for inter_type in block.interactions:
         for inter in block.interactions[inter_type]:
             atoms = inter.atoms
             group = inter.meta.get("comment", None)
-            if group:
-                indices = find_indices(universe, atoms, mol_name, natoms=len(block.nodes))
-                old_indices = indices_dict[inter_type].get(group, [])
-                indices_dict[inter_type][group] = indices + old_indices
-            else:
-                remainders[inter_type].extend([Interaction(inter.atoms, inter.parameters, meta=inter.meta)])
 
-    return indices_dict, remainders
+            indices = find_indices(universe,
+                                   atoms,
+                                   match_attr,
+                                   match_values,
+                                   natoms=len(block.nodes))
+            old_indices = indices_dict[inter_type].get(group, [])
+            indices_dict[inter_type][group] = indices + old_indices
+            initial_parameters[inter_type][group] = inter.parameters
+
+    return indices_dict, initial_parameters
+

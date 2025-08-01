@@ -8,7 +8,7 @@ import numpy as np
 import MDAnalysis as mda
 import vermouth.forcefield
 import fast_forward
-from fast_forward.compute_bonded import compute_value_for_interaction
+from fast_forward.interaction_distribution import interaction_distribution, BINS_DICT
 from fast_forward.itp_to_ag import itp_to_ag
 from fast_forward.itp_parser_sub import read_itp
 from fast_forward.interaction_plots import make_distribution_plot
@@ -59,13 +59,6 @@ def report(h_score_dict, exclude_outliers=False):
     with open('report.out', 'w') as fout:
         fout.writelines(printable)
 
-
-BINS_DICT = {"bonds": np.arange(0, 7, 0.01),
-             "angles": np.arange(181),
-             "dihedrals": np.arange(-180, 181)
-             }
-
-
 def __main__():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter,)
     parser.add_argument('-f', type=str, dest="trajfile", help="simulated trajectory file")
@@ -107,9 +100,9 @@ def __main__():
             interaction_groups, _ = itp_to_ag(block, molname, u)
             for inter_type in ['bonds', 'angles', 'dihedrals']:
                 for group_name, pair_idxs in interaction_groups[inter_type].items():
-                    time_series = compute_value_for_interaction(u, inter_type, pair_idxs)
+                    distr = interaction_distribution(u, inter_type, pair_idxs)
                     # calculate simulation distribution
-                    probs, edges = np.histogram(time_series, density=True, bins=BINS_DICT[inter_type])
+                    probs = distr.T[1]
                     # read in reference distribution
                     try:
                         reference_data = np.loadtxt([i for i in distribution_files if group_name in i and inter_type in i][0])
