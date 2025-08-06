@@ -3,7 +3,6 @@ Manage interaction blocks that have and haven't been commented in an input itp f
 """
 
 from collections import defaultdict
-from copy import deepcopy
 
 def finalise_interaction_types(block_interactions, fitted_interactions):
     """
@@ -44,17 +43,18 @@ def interaction_finalising(block, fitted_interactions):
     """
     all_interactions = finalise_interaction_types(block.interactions.keys(), fitted_interactions.keys())
 
-    # can't iterate over something we're modifying on the fly
-    copied_interactions = deepcopy(block)
-
     for inter_type in all_interactions:
         # first remove commented interactions from the block, these will have been analysed
+        # can't remove while iterating over, so first find interactions
+        for_removal = []
         for interaction in block.interactions[inter_type]:
             if interaction.meta.get('comment', None):
-                copied_interactions.remove_interaction(inter_type,
-                                                       interaction.atoms)
-        # reset the block interactions to be whatever's left of the copied interactions
-        block.interactions[inter_type] = copied_interactions.interactions[inter_type]
+                for_removal.append((inter_type, interaction.atoms))
+        # then remove them
+        for interaction in for_removal:
+            block.remove_interaction(interaction[0],
+                                     interaction[1])
+
         # now add the fitted interactions back in
         for new_interaction in fitted_interactions[inter_type]:
             block.add_interaction(inter_type,
