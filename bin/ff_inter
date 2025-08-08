@@ -104,8 +104,6 @@ def __main__():
 
             # assign each interaction type directly into the block.
             # Need to do this way to ensure, e.g. bonds/constraints are written properly
-            # for inter_type, interactions in fitter.interactions_dict.items():
-            #     block.interactions[inter_type] = interactions
             interaction_finalising(block, fitter.interactions_dict)
 
             # make plots if we want to

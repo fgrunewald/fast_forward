@@ -78,4 +78,3 @@ def itp_to_ag(block, mol_name, universe):
                 initial_parameters[inter_type][group] = inter.parameters
 
     return indices_dict, initial_parameters
-
