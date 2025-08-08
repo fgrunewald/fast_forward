@@ -3,6 +3,7 @@ Manage interaction blocks that have and haven't been commented in an input itp f
 """
 
 from collections import defaultdict
+from fast_forward.virtual_site_mass import MARTINI_MASS
 
 def finalise_interaction_types(block_interactions, fitted_interactions):
     """
@@ -27,6 +28,19 @@ def finalise_interaction_types(block_interactions, fitted_interactions):
     sorted_list = sorted(combined_set, key=lambda x: order_map[x])
     return sorted_list
 
+def check_vs(block, interactions):
+    """
+    Check whether there are virtual sites in a block. If there are, find their indices and return them in a list
+    """
+    virtual_sites = []
+    if any(['virtual_site' in i for i in interactions]):
+        virtual_sites = [i for i in block.nodes if float(block.nodes[i].get('mass',
+                                                                            MARTINI_MASS.get(
+                                                                                block.nodes[i].get('atype')[0], 72)
+                                                                            ))<1]
+    return virtual_sites
+
+
 def interaction_finalising(block, fitted_interactions):
     """
     Function to write fitted interactions into a block. Ensures that interactions
@@ -42,6 +56,7 @@ def interaction_finalising(block, fitted_interactions):
 
     """
     all_interactions = finalise_interaction_types(block.interactions.keys(), fitted_interactions.keys())
+    virtual_sites = check_vs(block, all_interactions)
 
     for inter_type in all_interactions:
         # first remove commented interactions from the block, these will have been analysed
@@ -57,6 +72,30 @@ def interaction_finalising(block, fitted_interactions):
 
         # now add the fitted interactions back in
         for new_interaction in fitted_interactions[inter_type]:
+            # check that we haven't made a constraint to a virtual site, which is not allowed by Gromacs
+            if inter_type == 'constraints':
+                if any([i in virtual_sites for i in new_interaction.atoms]):
+                    # can't work out how to reset the meta of the particular bond we want
+                    # so just remove it and add it back in purely as a bond
+                    block.remove_interaction('bonds',
+                                             # something weird happening here between np and how vermouth
+                                             # looks for interactions to remove
+                                             # atoms in bonds get set as tuple(np.int64, np.int64) somewhere
+                                             # but I can't track it down...
+                                             # this works as expected though.
+                                             tuple(new_interaction.atoms)
+                                             )
+                    # remove the ifndef from the interaction meta so we don't write it to the bond,
+                    del new_interaction.meta['ifndef']
+                    # then write the interaction together with the initially calculated high force constant.
+                    block.add_interaction('bonds',
+                                          new_interaction.atoms,
+                                          new_interaction.parameters+[new_interaction.meta['fc']],
+                                          new_interaction.meta)
+                    # don't write the constraint as would otherwise happen below
+                    continue
+
+            # add the new interaction in to the block
             block.add_interaction(inter_type,
                                   new_interaction.atoms,
                                   new_interaction.parameters,

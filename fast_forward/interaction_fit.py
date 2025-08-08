@@ -316,18 +316,20 @@ class InteractionFitter:
 
             if sigma < self.constraint_converter:
                 for ag in atoms:
-                    self.interactions_dict['bonds'].append(Interaction(atoms=ag,
+                    self.interactions_dict['bonds'].append(Interaction(atoms=list(ag),
                                                                        parameters=[1, center, sigma],
                                                                        meta={"comment": group_name}))
             else:
                 for ag in atoms:
-                    self.interactions_dict['bonds'].append(Interaction(atoms=ag,
+                    self.interactions_dict['bonds'].append(Interaction(atoms=list(ag),
                                                                        parameters=[1, center, 10000],
-                                                                       meta={"ifdef": "FLEXIBLE", "comment": group_name}))
-                    self.interactions_dict['constraints'].append(Interaction(atoms=ag,
+                                                                       meta={"ifdef": "FLEXIBLE",
+                                                                             "comment": group_name}))
+                    self.interactions_dict['constraints'].append(Interaction(atoms=list(ag),
                                                                              parameters=[1, center],
                                                                              meta={"ifndef": "FLEXIBLE",
-                                                                                   "comment": group_name}))
+                                                                                   "comment": group_name,
+                                                                                   "fc": sigma}))
         elif inter_type == 'angles':
             parameters = self.fit_parameters['angles'][group_name]
             center, sigma = parameters
@@ -342,7 +344,7 @@ class InteractionFitter:
                 func_type_out = 1
 
             for ag in atoms:
-                self.interactions_dict['angles'].append(Interaction(atoms=ag,
+                self.interactions_dict['angles'].append(Interaction(atoms=list(ag),
                                                                     parameters=[func_type_out, center, sigma],
                                                                     meta={"comment": group_name}))
 
@@ -354,7 +356,7 @@ class InteractionFitter:
                 center = np.round(np.degrees(center), self.precision)
 
                 for ag in atoms:
-                    self.interactions_dict['dihedrals'].append(Interaction(atoms=ag,
+                    self.interactions_dict['dihedrals'].append(Interaction(atoms=list(ag),
                                                                            parameters=[2, center, sigma],
                                                                            meta={"comment": group_name}))
             else:
