@@ -44,15 +44,26 @@ def _gaussian_fitter(x, y, initial_center, initial_sigma, initial_amplitude):
     return gaussian_result
 
 def _gaussian_generator(x, params):
-
+    """
+    Generate a gaussian function from fitted parameters
+    """
     mod = GaussianModel(x=x)
     pars = Parameters()
     pars.add("center", params['center'].value)
     pars.add("sigma", params['sigma'].value)
     pars.add("amplitude", params['amplitude'].value)
     fitted_distribution = mod.eval(pars, x=x)
-
     return fitted_distribution
+def _periodic_gaussian_generator(x, c, s, a):
+    """
+    Generate a gaussian function from fitted parameters across x with periodicity
+    """
+    terms = 10
+    period = 2*np.pi
+    y = np.zeros_like(x)
+    for k in range(-terms, terms+1):
+        y += np.exp(-0.5 * ((x - c + k * period) / s)**2)
+    return y * a
 
 class InteractionFitter:
     """
@@ -203,12 +214,12 @@ class InteractionFitter:
         y = data.T[1]
 
         # take care of periodic effects for improper dihedrals
-        x_gauss = np.concatenate((x, x + 2 * np.pi)) - np.pi
+        x_gauss = np.linspace(-2*np.pi, 2*np.pi, 720)
         y_gauss = np.tile(y, 2)
 
         # first try fitting a gaussian to the data in case we have an improper dihedral
-        gaussian_result = _gaussian_fitter(x_gauss[150:-150],
-                                           y_gauss[150:-150],
+        gaussian_result = _gaussian_fitter(x_gauss[120:-120],
+                                           y_gauss[120:-120],
                                            initial_center=dict(value=x[y.argmax()],
                                                                min=-np.pi,
                                                                max=np.pi),
@@ -272,16 +283,19 @@ class InteractionFitter:
 
         else:
             # transform the centre back into the correct domain after fitting to account for periodicity.
-            c0 = (gaussian_result.params['center'] + (2*np.pi)) % (2*np.pi) - np.pi
+            c0 = (gaussian_result.params['center'].value + (2*np.pi)) % (2*np.pi) - np.pi
 
             center = np.round(c0, self.precision)
             sigma = np.round((self.kb * self.temperature) / ((gaussian_result.params['sigma']) ** 2), self.precision)
 
             self.fit_parameters['dihedrals'][group_name] = [center, sigma]
-  
-            x_plot = np.degrees((x+(2*np.pi)) % (2*np.pi) - np.pi)
-            fitted_improper_plot = _gaussian_generator(x, gaussian_result.params)[np.argsort(x_plot)]
-            self.plot_parameters['dihedrals'][group_name] = {'x': x_plot,
+
+            x_plot = np.degrees(((x+np.pi) % (2*np.pi)) - np.pi)
+            fitted_improper_plot = _periodic_gaussian_generator(x,
+                                                                c0,
+                                                                gaussian_result.params['sigma'].value,
+                                                                gaussian_result.params['amplitude'].value)
+            self.plot_parameters['dihedrals'][group_name] = {'x': x_plot[np.argsort(x_plot)],
                                                              'Distribution': y,
                                                              'Fitted': fitted_improper_plot}
 
@@ -302,18 +316,20 @@ class InteractionFitter:
 
             if sigma < self.constraint_converter:
                 for ag in atoms:
-                    self.interactions_dict['bonds'].append(Interaction(atoms=ag,
+                    self.interactions_dict['bonds'].append(Interaction(atoms=list(ag),
                                                                        parameters=[1, center, sigma],
                                                                        meta={"comment": group_name}))
             else:
                 for ag in atoms:
-                    self.interactions_dict['bonds'].append(Interaction(atoms=ag,
+                    self.interactions_dict['bonds'].append(Interaction(atoms=list(ag),
                                                                        parameters=[1, center, 10000],
-                                                                       meta={"ifdef": "FLEXIBLE", "comment": group_name}))
-                    self.interactions_dict['constraints'].append(Interaction(atoms=ag,
+                                                                       meta={"ifdef": "FLEXIBLE",
+                                                                             "comment": group_name}))
+                    self.interactions_dict['constraints'].append(Interaction(atoms=list(ag),
                                                                              parameters=[1, center],
                                                                              meta={"ifndef": "FLEXIBLE",
-                                                                                   "comment": group_name}))
+                                                                                   "comment": group_name,
+                                                                                   "fc": sigma}))
         elif inter_type == 'angles':
             parameters = self.fit_parameters['angles'][group_name]
             center, sigma = parameters
@@ -328,7 +344,7 @@ class InteractionFitter:
                 func_type_out = 1
 
             for ag in atoms:
-                self.interactions_dict['angles'].append(Interaction(atoms=ag,
+                self.interactions_dict['angles'].append(Interaction(atoms=list(ag),
                                                                     parameters=[func_type_out, center, sigma],
                                                                     meta={"comment": group_name}))
 
@@ -340,7 +356,7 @@ class InteractionFitter:
                 center = np.round(np.degrees(center), self.precision)
 
                 for ag in atoms:
-                    self.interactions_dict['dihedrals'].append(Interaction(atoms=ag,
+                    self.interactions_dict['dihedrals'].append(Interaction(atoms=list(ag),
                                                                            parameters=[2, center, sigma],
                                                                            meta={"comment": group_name}))
             else:
