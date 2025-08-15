@@ -308,24 +308,28 @@ class InteractionFitter:
     def _virtual_sitesn_handler(self, data, group_name):
         self.fit_parameters['virtual_sitesn'][group_name] = None
 
-    def fit_to_gmx(self, inter_type, group_name, atoms):
+    def fit_to_gmx(self, inter_type, group_name, atoms, vs_constructors):
 
         if inter_type == 'bonds':
             parameters = self.fit_parameters['bonds'][group_name]
             center, sigma = parameters
 
-            if sigma < self.constraint_converter:
-                for ag in atoms:
+            for ag in atoms:
+                if any(x in vs_constructors for x in ag):
                     self.interactions_dict['bonds'].append(Interaction(atoms=list(ag),
                                                                        parameters=[1, center, sigma],
                                                                        meta={"comment": group_name}))
-            else:
-                for ag in atoms:
-                    self.interactions_dict['bonds'].append(Interaction(atoms=list(ag),
-                                                                       parameters=[1, center, 10000],
-                                                                       meta={"ifdef": "FLEXIBLE",
-                                                                             "comment": group_name}))
-                    self.interactions_dict['constraints'].append(Interaction(atoms=list(ag),
+                else:
+                    if sigma < self.constraint_converter:
+                        self.interactions_dict['bonds'].append(Interaction(atoms=list(ag),
+                                                                           parameters=[1, center, sigma],
+                                                                           meta={"comment": group_name}))
+                    else:
+                        self.interactions_dict['bonds'].append(Interaction(atoms=list(ag),
+                                                                           parameters=[1, center, 10000],
+                                                                           meta={"ifdef": "FLEXIBLE",
+                                                                                 "comment": group_name}))
+                        self.interactions_dict['constraints'].append(Interaction(atoms=list(ag),
                                                                              parameters=[1, center],
                                                                              meta={"ifndef": "FLEXIBLE",
                                                                                    "comment": group_name,
@@ -418,7 +422,27 @@ class InteractionFitter:
                                                                         parameters=pars,
                                                                         meta={"comment": group_name}))
 
-    def fit_interaction(self, data, atoms, group_name, inter_type):
+    def fit_interaction(self, data, atoms, group_name, inter_type, vs_constructors=[]):
+        """
+
+        Fit an interaction for a group of atoms, and assign the fitted
+        parameters to gromacs variables in self.interactions_dict
+
+        Parameters
+        ----------
+        data: np.array
+            histogram of input data
+        atoms: list
+            (lists of) atom indices involved in the given interaction
+        group_name: str
+            name of interaction group
+        inter_type: str
+            name of interaction type being analysed
+        vs_constructors: list
+            indices of atoms which are virtual sites. Cannot construct constraints from
+            virtual sites, so these will be overwritten if found.
+
+        """
         func_dict = {'bonds': self._bonds_fitter,
                      'angles': self._angles_fitter,
                      'dihedrals': self._dihedrals_fitter,
@@ -427,4 +451,4 @@ class InteractionFitter:
                      'virtual_sitesn': self._virtual_sitesn_handler
                      }
         func_dict[inter_type](data, group_name)
-        self.fit_to_gmx(inter_type, group_name, atoms)
+        self.fit_to_gmx(inter_type, group_name, atoms, vs_constructors)

@@ -34,6 +34,27 @@ from vermouth.file_writer import DeferredFileWriter
 
 VERSION = 'fast_forward version {}'.format(fast_forward.__version__)
 
+def virtualsite_atoms(block):
+    """
+
+    Parameters
+    ----------
+    block: vermouth.molecule.block
+
+    Returns
+    -------
+    constructors: list
+        indices in block which are virtual sites
+    """
+
+    constructors = []
+    for interaction_type in VIRTUALSITE_TYPES.keys():
+        if block.interactions.get(interaction_type):
+            for interaction in block.interactions[interaction_type]:
+                constructors.append(interaction.atoms[0])
+    return constructors
+
+
 def __main__():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter,)
     parser.add_argument('-f', type=str, dest="trajfile", help="trajectory file")
@@ -84,6 +105,8 @@ def __main__():
                                    dihedral_scaling=args.dihedral_scaling)
         # loop over molecules
         for molname, block in ff.blocks.items():
+            # check for virtualsites
+            vs_constructors = virtualsite_atoms(block)
             # calculate distributions for interaction
             if not args.itp_only:
                 guess_interactions(block)
@@ -97,7 +120,8 @@ def __main__():
                                                      args.prefix, args.distribution_data)
 
                     # fit the interactions
-                    fitter.fit_interaction(distr, pair_idxs, group_name, inter_type)
+                    fitter.fit_interaction(distr, pair_idxs, group_name, inter_type,
+                                           vs_constructors)
 
                     if inter_type in VIRTUALSITE_TYPES:
                         mass_redistribution(block, pair_idxs)
