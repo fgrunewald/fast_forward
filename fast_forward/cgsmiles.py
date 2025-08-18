@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import numpy as np
 import numba
 import networkx as nx
 from cgsmiles.resolve import MoleculeResolver
@@ -73,9 +74,11 @@ def get_mappings(cg, univ, _match, mappings):
         if resid != target_resids[resname]:
             continue
         for adx, atom in enumerate(atoms):
+            weight = np.float32(cg.nodes[bead]['graph'].nodes[atom].get('weight', 1))
             mapping.add_atom(cg.nodes[bead]["fragname"]+f"{bead}",
                              _match[atom],
-                             atom=univ.atoms[_match[atom]].name)
+                             atom=univ.atoms[_match[atom]].name,
+                             weight=weight)
         mappings[resname] = mapping
     return mappings
 
@@ -97,7 +100,7 @@ def cgsmiles_to_mapping(univ, cgsmiles_strs, mol_names, mol_matching=True):
     -------
     list, list, dict
     """
-    mapped_atoms, bead_idxs, mappings = [], [], {}
+    mapped_atoms, bead_idxs, mappings, weights = [], [], {}, []
     bead_count = 0
     for idx, mol_name in enumerate(mol_names):
         mol_graph = univ.molecule_graphs[mol_name]
@@ -129,9 +132,12 @@ def cgsmiles_to_mapping(univ, cgsmiles_strs, mol_names, mol_matching=True):
                 if len(atoms) == 0:
                     continue
                 mapped_atoms.append(numba.typed.List([_match[atom]+offset for atom in atoms]))
+                set_weights = nx.get_node_attributes(cg.nodes[bead]['graph'], 'weight')
+                weights.append(np.array([set_weights.get(node, 1.0) for node in atoms], dtype=np.float32))
                 bead_idxs.append(bead_count)
                 bead_count += 1
             offset += len(mol_graph)
     mapped_atoms = numba.typed.List(mapped_atoms)
     bead_idxs = numba.typed.List(bead_idxs)
-    return mapped_atoms, bead_idxs, mappings
+    weights = numba.typed.List(weights)
+    return mapped_atoms, bead_idxs, mappings, weights

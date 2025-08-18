@@ -20,14 +20,14 @@ class Mapping():
     def __init__(self, from_resname, to_resname):
         self.from_resname = from_resname
         self.to_resname = to_resname
-        self.atom_weights = OrderedDict()
-        self.bead_to_idx = defaultdict(list) #OrderedDict()
-        self.bead_to_atom = defaultdict(list) #OrderedDict()
+        self.atom_weights = defaultdict(list) 
+        self.bead_to_idx = defaultdict(list) 
+        self.bead_to_atom = defaultdict(list)
 
     def add_atom(self, bead, idx, atom=None, weight=None):
         self.bead_to_atom[bead].append(atom)
         self.bead_to_idx[bead].append(idx)
-        self.atom_weights[bead].append(np.float32(weight))
+        self.atom_weights[bead].append(weight)
 
     @property
     def beads(self):
@@ -136,10 +136,15 @@ class MapDirector(SectionLineParser):
         for bead in range(len(beads)):
             if beads[bead][0] != "!" and beads[bead][0].isalpha():
                 if not beads[bead-1][0].isalpha():
-                    self.current_mapping.add_atom(idx=idx, atom=atom, bead=beads[bead], weight=beads[bead-1])
+                    self.current_mapping.add_atom(idx=idx,
+                                                  atom=atom,
+                                                  bead=beads[bead],
+                                                  weight=np.float32(beads[bead-1]))
                 else:
-                    self.current_mapping.add_atom(idx=idx, atom=atom, bead=beads[bead], weight='+1.0')
-    
+                    self.current_mapping.add_atom(idx=idx,
+                                                  atom=atom,
+                                                  bead=beads[bead],
+                                                  weight=np.float32(1.0))
     def finalize(self, lineno=0):
         """
         Called at the end of the file

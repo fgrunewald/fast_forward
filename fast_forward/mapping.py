@@ -123,7 +123,7 @@ def forward_map_positions(mapped_atoms, bead_idxs, weights, positions, n_frames,
             pre_count = 0
             treat_count = 0
             for kdx in prange(len(atom_idxs)):
-                weight = weights[kdx]
+                weight = atom_weights[kdx]
                 atom_idx = atom_idxs[kdx]
                 vector = positions[fdx, atom_idx, :]
                 if atom_idx not in treated_atoms:
