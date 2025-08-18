@@ -115,8 +115,8 @@ def main():
 
         print("INFO - Mapping universe - indices")
         # first mapp the atom indices
-        mapped_atoms, bead_idxs = forward_map_indices(init_universe,
-                                                      mappings)
+        mapped_atoms, bead_idxs, weights = forward_map_indices(init_universe,
+                                                               mappings)
         cgsmiles_strs = None
     # we do the mapping with cgsmiles
     elif args.cgsmiles_library:
@@ -126,11 +126,10 @@ def main():
 
     if cgsmiles_strs:
         print("INFO - Mapping CGsmiles to universe.")
-        mapped_atoms, bead_idxs, mappings = cgsmiles_to_mapping(init_universe,
-                                                                cgsmiles_strs,
-                                                                args.mol_names)
+        mapped_atoms, bead_idxs, mappings, weights = cgsmiles_to_mapping(init_universe,
+                                                                         cgsmiles_strs,
+                                                                         args.mol_names)
     n_frames = len(init_universe.trajectory)
-
     print("INFO - Mapping universe - positions")
     # extract the position array from universe
     # if it's not a trajectory we have to emulate
@@ -145,6 +144,7 @@ def main():
 
     mapped_trajectory = forward_map_positions(mapped_atoms,
                                               bead_idxs,
+                                              weights,
                                               positions,
                                               n_frames,
                                               args.mode,
