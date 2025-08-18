@@ -103,7 +103,7 @@ def forward_map_indices(universe, mappings):
             total_beads += 1
     return mapped_atoms, bead_idxs, weights
 
-@njit(parallel=False)
+@njit(parallel=True)
 def forward_map_positions(mapped_atoms, bead_idxs, weights, positions, n_frames, mode, treated_atoms):
     new_trajectory = np.zeros((n_frames, len(mapped_atoms), 3))
     for count_lv1 in prange(len(mapped_atoms)):
@@ -118,27 +118,22 @@ def forward_map_positions(mapped_atoms, bead_idxs, weights, positions, n_frames,
             # the treated atoms
             pre_count = 0
             treat_count = 0
-            for atom_idx in prange(len(atom_idxs)):
-                vector = positions[fdx, atom_idxs[atom_idx], :]
-                if atom_idxs[atom_idx] not in treated_atoms:
-                    if np.float32(sum(atom_weights)) / len(atom_idxs) == 1.0:
-                        pre_pos = pre_pos +  atom_weights[atom_idx] *  vector
-                        pre_count += 1
-                    else:
-                        pre_pos = pre_pos +  np.float32(sum(atom_weights)) * atom_weights[atom_idx] *  vector
-                        pre_count += 1
+            for kdx in prange(len(atom_idxs)):
+                weight = weights[kdx]
+                atom_idx = atom_idxs[kdx]
+                vector = positions[fdx, atom_idx, :]
+                if atom_idx not in treated_atoms:
+                    pre_pos = pre_pos + vector * weight
+                    pre_count += 1
                 else:
-                    if np.float32(sum(atom_weights)) / len(atom_idxs) == 1.0:
-                        treat_pos = treat_pos + atom_weights[atom_idx] * vector
-                        treat_count += 1
-                    else:
-                        pre_pos = pre_pos +  np.float32(sum(atom_weights)) * atom_weights[atom_idx] * vector
-                        pre_count += 1
+                    treat_pos = treat_pos + vector * weight
+                    treat_count += 1
+
             if pre_count != 0:
-                pre_pos = pre_pos / np.float32(sum(atom_weights))
+                pre_pos = pre_pos / pre_count
                 new_pos = (pre_pos + treat_pos) / (treat_count + 1)
             else:
-                new_pos = treat_pos  / np.float32(sum(atom_weights))
+                new_pos = treat_pos  / treat_count
             new_trajectory[fdx, bead_idx, :] = new_pos
 
     return new_trajectory
