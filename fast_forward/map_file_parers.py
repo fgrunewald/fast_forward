@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import numpy as np
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from vermouth.parser_utils import SectionLineParser
 
 class Mapping():
@@ -20,9 +20,9 @@ class Mapping():
     def __init__(self, from_resname, to_resname):
         self.from_resname = from_resname
         self.to_resname = to_resname
-        self.bead_to_idx = OrderedDict()
-        self.bead_to_atom = OrderedDict()
         self.atom_weights = OrderedDict()
+        self.bead_to_idx = defaultdict(list) #OrderedDict()
+        self.bead_to_atom = defaultdict(list) #OrderedDict()
 
     def add_atom(self, bead, idx, atom=None, weight=None):
         self.bead_to_atom[bead].append(atom)

@@ -101,6 +101,10 @@ def forward_map_indices(universe, mappings):
             mapped_atoms.append(atoms.indices)
             bead_idxs.append(total_beads)
             total_beads += 1
+
+    mapped_atoms = numba.typed.List(mapped_atoms)
+    bead_idxs = numba.typed.List(bead_idxs)
+    weights = numba.typed.List(weights)
     return mapped_atoms, bead_idxs, weights
 
 @njit(parallel=True)

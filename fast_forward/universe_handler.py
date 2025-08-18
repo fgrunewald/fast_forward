@@ -12,11 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from collections import defaultdict
+import numpy as np
 import networkx as nx
 import MDAnalysis as mda
 from MDAnalysis import transformations
+from pysmiles import PTE
+from pysmiles.smiles_helper import correct_aromatic_rings, increment_bond_orders
 from fast_forward.hydrogen import BUILD_HYDRO, find_helper_atoms
 from tqdm import tqdm
+
+def assign_order(g):
+    increment_bond_orders(g)
+    for n1, n2, order in g.edges(data='order'):
+        if order > 1:
+            g.nodes[n1]['aromatic'] = True
+            g.nodes[n2]['aromatic'] = True
+    correct_aromatic_rings(g)
+    return g
 
 class UniverseHandler(mda.Universe):
     """
@@ -44,6 +56,8 @@ class UniverseHandler(mda.Universe):
         self.__n_residues = None
         self.__pbc_completed = False
         self.__resids = None
+        self.__molecule_graphs = None
+        self.__mass_to_element = None
 
     def pbc_complete(self):
         if not self.__pbc_completed:
@@ -59,7 +73,7 @@ class UniverseHandler(mda.Universe):
         """
         # much faster to make a bonded graph even of the entire system
         bonded_graph = nx.Graph()
-        bonded_graph.add_edges_from(list(self.atoms.get_connections("bonds").indices))
+        bonded_graph.add_edges_from([ tuple(indices) for indices in self.atoms.get_connections("bonds").indices])
         # select the atoms to be treated
         select_string = "type " + " ".join(association_dict.keys())
         atoms_to_treat = self.select_atoms(select_string)
@@ -73,6 +87,41 @@ class UniverseHandler(mda.Universe):
                     new_pos += hydro_coord
                 atom.position = new_pos / (len(hydrogen_coords) + 1)
         return atoms_to_treat.indices
+
+    def generate_molecule_graphs(self):
+        """
+        Generate molecular graphs from the topology information.
+        The molecular graphs contain the elements, bond order,
+        and if the molecule is aromatic or charged.
+        """
+        mol_graphs = {}
+        for mol_name, idxs in self.mol_idxs_by_name.items():
+            molecule = self.select_atoms(f"molnum {idxs[0]}")
+            bonds = [tuple(indices) for indices in molecule.bonds.indices]
+            eles = [self.mass_to_element(mass) for mass in molecule.masses]
+            lengths = {bond: length/10. for bond, length in zip(bonds, molecule.bonds.values())}
+            g = nx.Graph()
+            g.add_edges_from(bonds)
+            nx.set_edge_attributes(g, lengths, 'length')
+            nx.set_node_attributes(g, dict(zip(molecule.indices, eles)) ,'element')
+            g=assign_order(g)
+            mol_graphs[mol_name] = g
+        return mol_graphs
+
+    def mass_to_element(self, mass):
+        if self.__mass_to_element is None:
+            self.__mass_to_element = {round(PTE[ele]['AtomicMass']): ele for ele in PTE if type(ele)==str}
+        try:
+            ele = self.__mass_to_element[round(mass)]
+        except KeyError:
+            raise IOError(f"Did not find element with mass {mass}.")
+        return ele
+
+    @property
+    def molecule_graphs(self):
+        if self.__molecule_graphs is None:
+            self.__molecule_graphs = self.generate_molecule_graphs()
+        return self.__molecule_graphs
 
     @property
     def n_atoms(self):
