@@ -4,12 +4,14 @@ Functions for plotting fitted interaction distributions
 '''
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pickle
 from .interaction_distribution import BINS_DICT
 
 X_LABELS={'bonds': 'Distance',
           'angles': 'Angle',
-          'dihedrals': 'Angle'}
+          'dihedrals': 'Angle',
+          'distances': 'Distance'}
 
 def _plotter(data, atom_list, inter_type, ax):
 
@@ -25,7 +27,7 @@ def _plotter(data, atom_list, inter_type, ax):
     ax.set_xlim(BINS_DICT[inter_type][0], BINS_DICT[inter_type][-1])
     ax.set_xlabel(X_LABELS[inter_type])
 
-def make_distribution_plot(fit_data, save_plot_data=False, axarr=None):
+def make_distribution_plot(fit_data, save_plot_data=False, axarr=None, name='distribution_plots'):
     '''
 
     Parameters
@@ -37,6 +39,8 @@ def make_distribution_plot(fit_data, save_plot_data=False, axarr=None):
         array of axes to plot the fitted distributions on
     save_plot_data: bool
         if True, save the underlying data for plots as a pickle file
+        name: str
+        name of the output file (default: distribution_plots)
     '''
 
     total_interactions = sum([len(fit_data[i]) for i in fit_data.keys()])
@@ -63,4 +67,41 @@ def make_distribution_plot(fit_data, save_plot_data=False, axarr=None):
     # need to make room for the title
     fig.subplots_adjust(hspace = 0.3)
 
-    fig.savefig(f'distribution_plots.png')
+    fig.savefig(f'{name}.png')
+
+def make_matrix_plot(matrix, atom_names, axarr=None, name='score_matrix'):
+    '''
+
+    Parameters
+    ----------
+    matrix: np.ndarray
+        Quatratic 2D array representing the matrix
+    atom_names: list
+        List of atom names corresponding to the rows and columns of the matrix
+    axarr: matplotlib.pyplot.Figure.axes
+        array of axes to plot the fitted distributions on
+    name: str
+        name of the output file (default: distribution_plots)
+    '''
+    if not axarr:
+        nrows = 1
+        ncols = 1
+        fig, axarr = plt.subplots(nrows=nrows, ncols=ncols,
+                               figsize=(ncols*5+1, nrows*5))
+    cax = axarr.imshow(matrix, cmap='coolwarm', vmin=0, vmax=1)
+    axarr.set_xticks(np.arange(len(atom_names)), labels=atom_names)
+    axarr.set_yticks(np.arange(len(atom_names)), labels=atom_names)
+
+    for i in range(matrix.shape[0]):
+        for j in range(matrix.shape[1]):
+            text = axarr.text(j, i, f'{matrix[i, j]:.2f}',
+                        ha="center", va="center", color="w", fontsize=8)
+    cbar = plt.colorbar(cax)
+    cbar.set_label('Score', rotation=270, labelpad=15)
+    cbar.ax.tick_params(labelsize=10)
+    axarr.set_title('Distance Score Matrix')
+
+    # need to make room for the title
+    fig.subplots_adjust(hspace = 0.3)
+
+    fig.savefig(f'{name}.png')
