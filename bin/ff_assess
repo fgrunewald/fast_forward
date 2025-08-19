@@ -8,20 +8,16 @@ import numpy as np
 import MDAnalysis as mda
 import vermouth.forcefield
 import fast_forward
-from fast_forward.interaction_distribution import interaction_distribution, BINS_DICT
+from fast_forward.interaction_distribution import interaction_distribution
 from fast_forward.itp_to_ag import itp_to_ag, find_indices
 from fast_forward.itp_parser_sub import read_itp
 from fast_forward.interaction_plots import make_distribution_plot, make_matrix_plot
+from fast_forward.score import calc_score, hellinger
 from collections import defaultdict
 
 VERSION = 'fast_forward version {}'.format(fast_forward.__version__)
 
-
-def hellinger(p,q):
-    return np.round(np.sqrt(np.sum(np.power((np.sqrt(p) - np.sqrt(q)),2))) / np.sqrt(2),2)
-
-
-def report(h_score_dict, exclude_outliers=False):
+def report_interactions(score_dict, exclude_outliers=False):
     buff = ''
 
     buff += " [ Interaction Distribution Report ]\n"
@@ -39,9 +35,9 @@ def report(h_score_dict, exclude_outliers=False):
     buff += " Interaction Scores:\n"
     buff += " 0 - identical, 1 - no overlap\n\n"
     h_score = []
-    for interaction_type in h_score_dict.keys():
+    for interaction_type in score_dict.keys():
         buff += f" {interaction_type} \n"
-        for atom_group, score in h_score_dict[interaction_type].items():
+        for atom_group, score in score_dict[interaction_type].items():
             if exclude_outliers:
                 if score < 0.5:  # arbitrary cut off for now
                     buff += f"\t{atom_group:20s}: {score:.2f}\n"
@@ -56,7 +52,39 @@ def report(h_score_dict, exclude_outliers=False):
                       std=np.array(h_score).std())
 
     print(printable)
-    with open('report.out', 'w') as fout:
+    with open('report_interactions.out', 'w') as fout:
+        fout.writelines(printable)
+
+
+def report_distances(score_matrix, atom_names):
+    mean = np.mean(score_matrix)
+    std = np.std(score_matrix)
+    maxe = np.max(score_matrix)
+    score_matrix_report = np.vstack([atom_names, score_matrix])
+    score_matrix_report = np.column_stack([[''] + atom_names, score_matrix_report])
+    
+    buff = " [ Distance Distribution Report ]\n "
+    buff += f" Overall Score : {{mean:.2f}} ± {{std:.2f}}\n\n"
+    buff += f"   Max Score : {{max:.2f}}\n\n"
+    buff += " Score guide:\n"
+    buff += "   0.0-0.3 : good\n"
+    buff += "   0.3-0.5 : ok\n"
+    buff += "   0.5-1.0 : bad\n"
+    buff += "\n   Score Matrix:\n"
+    buff += " 0 - identical, 1 - no overlap\n\n"
+
+    for i, row in enumerate(score_matrix_report):
+        if i == 0:
+            buff += "" + " ".join(f"{name:>5}" for name in row) + "\n"
+        else:
+            # First element is the atom name, rest are scores
+            buff += f"{row[0]:>5} " + " ".join(f"{float(score):>5.2f}" for score in row[1:]) + "\n"
+
+    printable = buff.format(mean=np.mean(score_matrix),
+                      std=np.std(score_matrix),
+                      max=np.max(score_matrix))
+    print(printable)
+    with open('report_distances.out', 'w') as fout:
         fout.writelines(printable)
 
 def __main__():
@@ -119,49 +147,44 @@ def __main__():
                                                          'Simulated': probs}
         if args.plots:
             make_distribution_plot(plot_data, args.plot_data)
-        report(h_score_dict, args.exclude_outliers)
+        report_interactions(h_score_dict, args.exclude_outliers)
         
         # evaluation of distances
         for molname, block in ff.blocks.items():
-            match_attr = "moltypes"
-            match_values = [molname]
-            inter_type = 'distances'
-            plot_data = defaultdict(dict)
-            h_score_dict = {'distances': {}}
-            n_atoms = len(block.nodes)
-            score_matrix = np.zeros((n_atoms, n_atoms))
+            # plot_data = defaultdict(dict)
+            natoms = len(block.nodes)
+            score_matrix = np.zeros((natoms, natoms))
 
             for node1, name1 in block.nodes(data='atomname'):
                 for node2, name2 in list(block.nodes(data='atomname'))[node1+1:]:
                     atoms = np.array([node1, node2])
-                    group_name = f'{name1}_{name2}'
+                    group_name = f'{name1}_{name2}' # following the naming convention introduced in ff_inter
                     indices = find_indices(u,
                                     atoms,
-                                    match_attr,
-                                    match_values,
-                                    natoms=len(block.nodes))
-                    distr = interaction_distribution(u, inter_type, indices)
+                                    match_attr="moltypes",
+                                    match_values=[molname],
+                                    natoms=natoms)
+                    distr = interaction_distribution(u, 'distances', indices)
                     # calculate simulation distribution
                     probs = distr.T[1]
                     # read in reference distribution
                     try:
-                        reference_data = np.loadtxt([i for i in distribution_files if group_name in i and inter_type in i][0])
+                        reference_data = np.loadtxt([i for i in distribution_files if group_name in i and 'distances' in i][0])
                     except IndexError:
                         print(f"{group_name} file not found!")
                         continue
-                    # calculate hellinger distance between simulated and reference distributions
-                    score = hellinger(probs/probs.sum(), reference_data.T[1] / reference_data.T[1].sum())
-                    h_score_dict[inter_type][group_name] = score
+                    # calculate score and populate matrix
+                    score = calc_score(probs, reference_data.T[1])
                     score_matrix[node1, node2] = float(score)
                     score_matrix[node2, node1] = float(score)
 
-                plot_data[inter_type][group_name] = {"x": reference_data.T[0],
-                                                        "Reference": reference_data.T[1],
-                                                        'Simulated': probs}
-            print(score_matrix)
+                # might be useful to plot all distributions
+                # plot_data[inter_type][group_name] = {"x": reference_data.T[0],
+                #                                         "Reference": reference_data.T[1],
+                #                                         'Simulated': probs}
+            atom_names = [name for _, name in block.nodes(data='atomname')]
             if args.plots:
-                atom_names = [name for _, name in block.nodes(data='atomname')]
-                make_matrix_plot(score_matrix, atom_names, name=f'interaction_matrix_{molname}')
-        report(h_score_dict, args.exclude_outliers)
+                make_matrix_plot(score_matrix, atom_names, name=f'score_matrix_{molname}')
+        report_distances(score_matrix, atom_names)
 
 __main__()
