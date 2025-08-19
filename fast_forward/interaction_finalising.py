@@ -51,4 +51,4 @@ def interaction_finalising(block, fitted_interactions):
             if not interaction.meta.get('comment'):
                 retain.append(interaction)
 
-        block.interactions[inter_type] = fitted_interactions[inter_type] + list(retain)
+        block.interactions[inter_type] = list(retain) + fitted_interactions[inter_type]
