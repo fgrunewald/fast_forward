@@ -3,15 +3,17 @@ from numba import njit, prange
 from fast_forward.linalg_functions import vector_angle_degrees, dihedral_angle
 from lmfit import create_params, minimize
 
+
 @njit(parallel=True)
 def _fast_pair_dists(arr1, arr2):
     frames = arr1.shape[0]
     pair_dists = np.zeros((frames))
     for fdx in prange(frames):
         diff = arr1[fdx] - arr2[fdx]
-        norm = (diff[0]**2.0 + diff[1]**2.0 + diff[2]**2.0)**0.5
+        norm = (diff[0] ** 2.0 + diff[1] ** 2.0 + diff[2] ** 2.0) ** 0.5
         pair_dists[fdx] = norm
     return pair_dists
+
 
 @njit(parallel=True)
 def _fast_angle(arr1, arr2, arr3):
@@ -23,6 +25,7 @@ def _fast_angle(arr1, arr2, arr3):
         angle[fdx] = vector_angle_degrees(diff1, diff2)
     return angle
 
+
 @njit(parallel=True)
 def _fast_dih(arr1, arr2, arr3, arr4):
     frames = arr1.shape[0]
@@ -33,6 +36,7 @@ def _fast_dih(arr1, arr2, arr3, arr4):
         diff3 = arr3[fdx] - arr4[fdx]
         angle[fdx] = dihedral_angle(diff1, diff2, diff3)
     return angle
+
 
 def _vs3fd_func(pars, x, positions):
     vals = pars.valuesdict()
@@ -50,12 +54,13 @@ def _vs3fd_func(pars, x, positions):
 
     return x - r_predicted_vs
 
+
 def _vs3fd(arr1, arr2, arr3, arr4):
     fit_params = create_params(a=1, b=1)
-    pos_list = [arr2 / 10, arr3 / 10, arr4 / 10] # convert to nm
-    fit = minimize(_vs3fd_func, fit_params, args=(arr1/10, pos_list,))
+    pos_list = [arr2 / 10, arr3 / 10, arr4 / 10]  # convert to nm
+    fit = minimize(_vs3fd_func, fit_params, args=(arr1 / 10, pos_list,))
     ab = np.array([fit.params["a"].value, fit.params["b"].value])
-    return np.tile(ab, arr1.shape[0])
+    return ab
 
 
 def _vs3out_func(pars, x, positions):
@@ -68,21 +73,23 @@ def _vs3out_func(pars, x, positions):
 
     r_ij = j - i
     r_ik = k - i
-
     r_predicted_vs = i + (a * r_ij) + (b * r_ik) + (c * np.cross(r_ij, r_ik))
 
     return x - r_predicted_vs
 
+
 def _vs3out(arr1, arr2, arr3, arr4):
     fit_params = create_params(a=1, b=1, c=1)
-    pos_list = [arr2 / 10, arr3 / 10, arr4 / 10] # convert to nm
-    fit = minimize(_vs3out_func, fit_params, args=(arr1/10, pos_list,))
+    pos_list = [arr2 / 10, arr3 / 10, arr4 / 10]  # convert to nm
+    fit = minimize(_vs3out_func, fit_params, args=(arr1 / 10, pos_list,))
     abc = np.array([fit.params["a"].value, fit.params["b"].value, fit.params["c"].value])
-    return np.tile(abc, arr1.shape[0])
+
+    return abc
 
 
 def _virtual_sitesn(*args):
     return None
+
 
 NORMAL_FUNCS = {"angles": _fast_angle,
                 "bonds": _fast_pair_dists,
@@ -91,4 +98,4 @@ NORMAL_FUNCS = {"angles": _fast_angle,
                 "virtual_sites3fd": _vs3fd,
                 "virtual_sites3out": _vs3out,
                 "virtual_sitesn": _virtual_sitesn
-               }
+                }
