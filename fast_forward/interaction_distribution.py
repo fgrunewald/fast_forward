@@ -3,7 +3,8 @@ from fast_forward.bonded_functions import NORMAL_FUNCS
 
 BINS_DICT = {"bonds": np.arange(0, 7, 0.01),
              "angles": np.arange(181),
-             "dihedrals": np.arange(-180, 181)
+             "dihedrals": np.arange(-180, 181),
+             "distances": np.arange(0,30,0.05) # might need adjustment to allow for larger molecules
              }
 
 VIRTUALSITE_TYPES = {'virtual_sitesn': {'1' : 'virtual_sitesn'},
@@ -14,7 +15,7 @@ ARR_SHAPES = {'virtual_sitesn': 1,
               'virtual_sites3out': 3
               }
 
-RECOGNISED_INTERACTIONS = ['bonds', 'angles', 'dihedrals', 'virtual_sitesn', 'virtual_sites3']
+RECOGNISED_INTERACTIONS = ['bonds', 'angles', 'dihedrals', 'virtual_sitesn', 'virtual_sites3', 'distances']
 
 def interaction_distribution(u, inter_type, pair_idxs, group_name="", prefix="", save=False):
     # i.e. if inter_type not one of virtual_sitesn, virtual_sites3fd, etc.
