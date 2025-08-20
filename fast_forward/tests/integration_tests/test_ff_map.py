@@ -1,6 +1,6 @@
 
 
-from .datafiles import GSH_AA_TPR, GSH_AA_TRAJ, GSH_CG_GRO, GSH_CG_TRAJ, GSH_MAP
+from fast_forward.tests.datafiles import GSH_AA_TPR, GSH_AA_TRAJ, GSH_CG_GRO, GSH_CG_TRAJ, GSH_MAP
 
 import subprocess
 import numpy as np
@@ -41,6 +41,7 @@ def test_ff_map(tmp_path, monkeypatch):
                             [i for i in files if '.xtc' in i.name][0],
                             )
 
+    # assert that the coordinates we map to are the same as in the reference
     for ts, ts0 in zip(reference_universe.trajectory, new_universe.trajectory):
         assert np.all(np.isclose(reference_universe.atoms.positions, new_universe.atoms.positions))
 
