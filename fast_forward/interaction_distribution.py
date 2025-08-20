@@ -16,10 +16,11 @@ INTERACTIONS = {'bonds': {'bins': np.arange(0, 7, 0.01)
                                                    'virtual_sites3out': 3}
                                    }
                 }
+VS_TYPES = [key for key in INTERACTIONS.keys() if 'virtual' in key]
 
 def interaction_distribution(u, inter_name, pair_idxs, group_name="", prefix="", save=False, parameters=[]):
     # i.e. if inter_type not one of virtual_sitesn, virtual_sites3fd, etc.
-    if not 'virtual' in inter_name:
+    if inter_name not in VS_TYPES:
         inter_type = inter_name
         nframes = u.trajectory.n_frames
         time_series = np.zeros((len(pair_idxs) * nframes))
