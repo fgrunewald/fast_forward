@@ -23,8 +23,7 @@ def package_files(directory):
     return paths
 
 setup(
-#    package_data={'': package_files('pycgmap/data')
-#                  + package_files('polyply/tests/test_data'),},
+    package_data={'': package_files('fast_forward/tests/')},
     scripts=['bin/ff_map', 'bin/ff_inter', 'bin/ff_assess'],
     pbr=True,
 )
