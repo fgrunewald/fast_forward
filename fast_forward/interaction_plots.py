@@ -124,7 +124,7 @@ def make_matrix_plot(matrix, atom_names, axarr=None, name='score_matrix'):
 
     fig.savefig(f'{name}.png')
 
-def make_distances_distribution_plot(plot_data, atom_names, axarr=None, name='distance_distribution_plots'):
+def make_distances_distribution_plot(plot_data, atom_names, save_plot_data=False, axarr=None, name='distance_distribution_plots'):
     '''
 
     Parameters
@@ -163,4 +163,8 @@ def make_distances_distribution_plot(plot_data, atom_names, axarr=None, name='di
     axarr[natoms-2, natoms-2].legend(loc='upper left', fontsize=10, bbox_to_anchor=(-1, 0.75), frameon=False)
     
     fig.suptitle('Distance Distribution Plots', fontsize=16)
+
+    if save_plot_data:
+        pickle.dump(plot_data, open('plot_data_distribution.p', 'wb'))
+
     fig.savefig(f'{name}.png', bbox_inches='tight')
