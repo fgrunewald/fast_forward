@@ -111,6 +111,11 @@ def __main__():
             if not args.itp_only:
                 guess_interactions(block)
             interaction_groups, initial_parameters, block_indices = itp_to_ag(block, molname, u)
+
+            if not interaction_groups:
+                print(f"WARNING: No interactions found in block {molname}. None will be fitted for this molecule.")
+                print("\t Add them by commenting relevant lines in the itp file, or let fast_forward identify interactions by omitting -itp-only.")
+                continue
             for inter_type in RECOGNISED_INTERACTIONS:
                 for group_name, pair_idxs in interaction_groups[inter_type].items():
                     # make sure we know which kind of virtual site we're dealing with
