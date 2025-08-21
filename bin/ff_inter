@@ -110,16 +110,17 @@ def __main__():
             # calculate distributions for interaction
             if not args.itp_only:
                 guess_interactions(block)
-            interaction_groups, initial_parameters = itp_to_ag(block, molname, u)
-            for inter_name in INTERACTIONS.keys():
+            interaction_groups, initial_parameters, block_indices = itp_to_ag(block, molname, u)
+            for inter_type in RECOGNISED_INTERACTIONS:
                 for (group_name, pair_idxs), (parameter_type) in zip(interaction_groups[inter_name].items(), initial_parameters[inter_name].values()):
 
                     distr, inter_type = interaction_distribution(u, inter_name, pair_idxs, group_name,
                                                      args.prefix, args.distribution_data,
                                                      parameter_type)
 
+
                     # fit the interactions
-                    fitter.fit_interaction(distr, pair_idxs, group_name, inter_type,
+                    fitter.fit_interaction(distr, block_indices[inter_type][group_name], group_name, inter_type,
                                            vs_constructors)
 
                     if 'virtual' in inter_name:

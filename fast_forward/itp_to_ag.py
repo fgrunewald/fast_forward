@@ -63,6 +63,7 @@ def itp_to_ag(block, mol_name, universe):
 
     indices_dict = defaultdict(dict)
     initial_parameters = defaultdict(dict)
+    block_indices = defaultdict(dict)
     for inter_type in block.interactions:
         for inter in block.interactions[inter_type]:
             atoms = inter.atoms
@@ -74,7 +75,11 @@ def itp_to_ag(block, mol_name, universe):
                                        match_values,
                                        natoms=len(block.nodes))
                 old_indices = indices_dict[inter_type].get(group, [])
+                old_block_indices = block_indices[inter_type].get(group, [])
+
                 indices_dict[inter_type][group] = indices + old_indices
                 initial_parameters[inter_type][group] = inter.parameters
 
-    return indices_dict, initial_parameters
+                block_indices[inter_type][group] = [atoms] + old_block_indices
+
+    return indices_dict, initial_parameters, block_indices
