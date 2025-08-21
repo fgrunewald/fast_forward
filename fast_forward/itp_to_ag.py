@@ -74,6 +74,8 @@ def itp_to_ag(block, mol_name, universe):
                                        match_attr,
                                        match_values,
                                        natoms=len(block.nodes))
+                if inter_type == 'constraints': # treat constraints as bonds
+                    inter_type = 'bonds'
                 old_indices = indices_dict[inter_type].get(group, [])
                 old_block_indices = block_indices[inter_type].get(group, [])
 
