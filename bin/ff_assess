@@ -119,7 +119,7 @@ def __main__():
         for file_handle in args.itp_files:
             with open(file_handle) as _file:
                 lines = _file.readlines()
-        read_itp(lines, ff)
+            read_itp(lines, ff)
 
         interaction_mapper = ITPInteractionMapper(u, ff.blocks.values(), ff.blocks.keys())
         
@@ -162,7 +162,7 @@ def __main__():
             atom_names = [name for _, name in block.nodes(data='atomname')]
             if args.plots:
                 make_matrix_plot(score_m, atom_names, name=f'score_matrix_{molname}')
-                make_distances_distribution_plot(plot_data, atom_names, name='all_dist')
-        report_distances(score_m, atom_names)
+                make_distances_distribution_plot(plot_data, atom_names, name=f'distance_distributions_{molname}')
+            report_distances(score_m, atom_names)
 
 __main__()

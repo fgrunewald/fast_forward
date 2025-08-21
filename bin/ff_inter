@@ -99,7 +99,7 @@ def __main__():
         for file_handle in args.itp_files:
             with open(file_handle) as _file:
                 lines = _file.readlines()
-        read_itp(lines, ff)
+            read_itp(lines, ff)
 
         fitter = InteractionFitter(constraint_converter=args.constraint_convert,
                                    max_dihedrals=args.max_dihedral,
