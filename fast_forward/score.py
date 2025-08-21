@@ -1,7 +1,7 @@
 import numpy as np
-from fast_forward.interaction_distribution import BINS_DICT
+from fast_forward.interaction_distribution import BINS_DICT, interaction_distribution
 from fast_forward.itp_to_ag import find_indices
-from interaction_distribution import interaction_distribution
+from collections import defaultdict
 
 
 
@@ -44,7 +44,23 @@ def calc_score(ref, test, bins=BINS_DICT['distances']):
     return np.round(score, 2)
 
 def score_matrix(molname, block, universe, distribution_files):
-    # plot_data = defaultdict(dict)
+    """
+    Calculate the score matrix for all pairwise distances in the molecule block.
+
+    Parameters
+    ----------
+    molname : str
+        Name of the molecule.
+    block : vermouth.molecule.Block
+        Block containing the molecule information.
+    universe : MDAnalysis.Universe
+        Universe containing the trajectory data.
+    distribution_files : list of str
+        List of file paths to the distribution data files.
+        These files should contain the reference distributions for the pairwise distances.
+    """
+
+    plot_data = defaultdict(dict)
     natoms = len(block.nodes)
     score_matrix = np.zeros((natoms, natoms))
 
@@ -70,3 +86,7 @@ def score_matrix(molname, block, universe, distribution_files):
             score = calc_score(probs, reference_data.T[1])
             score_matrix[node1, node2] = float(score)
             score_matrix[node2, node1] = float(score)
+            plot_data['distances'][group_name] = {"x": reference_data.T[0],
+                                                    "Reference": reference_data.T[1],
+                                                    'Simulated': probs}
+    return score_matrix, plot_data
