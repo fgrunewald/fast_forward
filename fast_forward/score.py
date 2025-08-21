@@ -1,5 +1,9 @@
 import numpy as np
 from fast_forward.interaction_distribution import BINS_DICT
+from fast_forward.itp_to_ag import find_indices
+from interaction_distribution import interaction_distribution
+
+
 
 def hellinger(p,q):
     return np.round(np.sqrt(np.sum(np.power((np.sqrt(p) - np.sqrt(q)),2))) / np.sqrt(2),2)
@@ -38,3 +42,31 @@ def calc_score(ref, test, bins=BINS_DICT['distances']):
 
     score = hellinger(ref, test) * 0.7 + mean_diff_norm * 0.3 # score is a weighted sum of Hellinger distance and mean difference normalized by standard deviation
     return np.round(score, 2)
+
+def score_matrix(molname, block, universe, distribution_files):
+    # plot_data = defaultdict(dict)
+    natoms = len(block.nodes)
+    score_matrix = np.zeros((natoms, natoms))
+
+    for node1, name1 in block.nodes(data='atomname'):
+        for node2, name2 in list(block.nodes(data='atomname'))[node1+1:]:
+            atoms = np.array([node1, node2])
+            group_name = f'{name1}_{name2}' # following the naming convention introduced in ITPInteractionMapper
+            indices = find_indices(universe,
+                            atoms,
+                            match_attr="moltypes",
+                            match_values=[molname],
+                            natoms=natoms)
+            distr = interaction_distribution(universe, 'distances', indices)
+            # calculate simulation distribution
+            probs = distr.T[1]
+            # read in reference distribution
+            try:
+                reference_data = np.loadtxt([i for i in distribution_files if group_name in i and 'distances' in i][0])
+            except IndexError:
+                print(f"{group_name} file not found!")
+                continue
+            # calculate score and populate matrix
+            score = calc_score(probs, reference_data.T[1])
+            score_matrix[node1, node2] = float(score)
+            score_matrix[node2, node1] = float(score)
