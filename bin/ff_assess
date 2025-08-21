@@ -56,14 +56,14 @@ def report_interactions(score_dict, exclude_outliers=False):
         fout.writelines(printable)
 
 
-def report_distances(score_matrix, atom_names):
+def report_distances(score_matrix, molname, atom_names):
     mean = np.mean(score_matrix)
     std = np.std(score_matrix)
     maxe = np.max(score_matrix)
     score_matrix_report = np.vstack([atom_names, score_matrix])
     score_matrix_report = np.column_stack([[''] + atom_names, score_matrix_report])
     
-    buff = " [ Distance Distribution Report ]\n "
+    buff = f" [ Distance Distribution Report for {molname} ]\n "
     buff += f" Overall Score : {{mean:.2f}} ± {{std:.2f}}\n\n"
     buff += f"   Max Score : {{max:.2f}}\n\n"
     buff += " Score guide:\n"
@@ -80,7 +80,8 @@ def report_distances(score_matrix, atom_names):
             # First element is the atom name, rest are scores
             buff += f"{row[0]:>5} " + " ".join(f"{float(score):>5.2f}" for score in row[1:]) + "\n"
 
-    printable = buff.format(mean=np.mean(score_matrix),
+    printable = buff.format(molname=molname,
+                      mean=np.mean(score_matrix),
                       std=np.std(score_matrix),
                       max=np.max(score_matrix))
     print(printable)
@@ -163,6 +164,6 @@ def __main__():
             if args.plots:
                 make_matrix_plot(score_m, atom_names, name=f'score_matrix_{molname}')
                 make_distances_distribution_plot(plot_data, atom_names, name=f'distance_distributions_{molname}')
-            report_distances(score_m, atom_names)
+            report_distances(score_m, molname, atom_names)
 
 __main__()
