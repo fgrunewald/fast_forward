@@ -93,3 +93,27 @@ class ITPInteractionMapper:
                     initial_parameters[inter_type][group] = inter.parameters
 
         return indices_dict, initial_parameters, block_indices
+
+    def get_pairwise_interaction(self, molname):
+        """
+        Iterate over all atoms in itp file and return dict of
+        paired indices corresponding to all pairwise distances in universe.
+        group_names are given by the atomnames
+        """
+        block = self.blocks[molname]
+
+        indices_dict = defaultdict(dict)
+        
+        for node1, name1 in block.nodes(data='atomname'):
+            for node2, name2 in list(block.nodes(data='atomname'))[node1+1:]:
+                atoms = np.array([node1, node2])
+                group = f'{name1}_{name2}' # naming convention with node1 < node2
+                indices = find_indices(self.universe,
+                                        atoms,
+                                        self.match_attr,
+                                        self.match_values[molname],
+                                        natoms=len(block.nodes))
+                old_indices = indices_dict['distances'].get(group, [])
+                indices_dict['distances'][group] = indices + old_indices
+
+        return indices_dict
