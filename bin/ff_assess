@@ -8,20 +8,16 @@ import numpy as np
 import MDAnalysis as mda
 import vermouth.forcefield
 import fast_forward
-from fast_forward.interaction_distribution import interaction_distribution, BINS_DICT
-from fast_forward.itp_to_ag import itp_to_ag
+from fast_forward.interaction_distribution import interaction_distribution
+from fast_forward.itp_to_ag import ITPInteractionMapper, find_indices
 from fast_forward.itp_parser_sub import read_itp
-from fast_forward.interaction_plots import make_distribution_plot
+from fast_forward.interaction_plots import make_distribution_plot, make_matrix_plot, make_distances_distribution_plot
+from fast_forward.score import calc_score, hellinger, score_matrix
 from collections import defaultdict
 
 VERSION = 'fast_forward version {}'.format(fast_forward.__version__)
 
-
-def hellinger(p,q):
-    return np.round(np.sqrt(np.sum(np.power((np.sqrt(p) - np.sqrt(q)),2))) / np.sqrt(2),2)
-
-
-def report(h_score_dict, exclude_outliers=False):
+def report_interactions(score_dict, exclude_outliers=False):
     buff = ''
 
     buff += " [ Interaction Distribution Report ]\n"
@@ -39,9 +35,9 @@ def report(h_score_dict, exclude_outliers=False):
     buff += " Interaction Scores:\n"
     buff += " 0 - identical, 1 - no overlap\n\n"
     h_score = []
-    for interaction_type in h_score_dict.keys():
+    for interaction_type in score_dict.keys():
         buff += f" {interaction_type} \n"
-        for atom_group, score in h_score_dict[interaction_type].items():
+        for atom_group, score in score_dict[interaction_type].items():
             if exclude_outliers:
                 if score < 0.5:  # arbitrary cut off for now
                     buff += f"\t{atom_group:20s}: {score:.2f}\n"
@@ -56,7 +52,40 @@ def report(h_score_dict, exclude_outliers=False):
                       std=np.array(h_score).std())
 
     print(printable)
-    with open('report.out', 'w') as fout:
+    with open('report_interactions.out', 'w') as fout:
+        fout.writelines(printable)
+
+
+def report_distances(score_matrix, molname, atom_names):
+    mean = np.mean(score_matrix)
+    std = np.std(score_matrix)
+    maxe = np.max(score_matrix)
+    score_matrix_report = np.vstack([atom_names, score_matrix])
+    score_matrix_report = np.column_stack([[''] + atom_names, score_matrix_report])
+    
+    buff = f" [ Distance Distribution Report for {molname} ]\n "
+    buff += f" Overall Score : {{mean:.2f}} ± {{std:.2f}}\n\n"
+    buff += f"   Max Score : {{max:.2f}}\n\n"
+    buff += " Score guide:\n"
+    buff += "   0.0-0.3 : good\n"
+    buff += "   0.3-0.5 : ok\n"
+    buff += "   0.5-1.0 : bad\n"
+    buff += "\n   Score Matrix:\n"
+    buff += " 0 - identical, 1 - no overlap\n\n"
+
+    for i, row in enumerate(score_matrix_report):
+        if i == 0:
+            buff += "" + " ".join(f"{name:>5}" for name in row) + "\n"
+        else:
+            # First element is the atom name, rest are scores
+            buff += f"{row[0]:>5} " + " ".join(f"{float(score):>5.2f}" for score in row[1:]) + "\n"
+
+    printable = buff.format(molname=molname,
+                      mean=np.mean(score_matrix),
+                      std=np.std(score_matrix),
+                      max=np.max(score_matrix))
+    print(printable)
+    with open('report_distances.out', 'w') as fout:
         fout.writelines(printable)
 
 def __main__():
@@ -83,6 +112,7 @@ def __main__():
     else:
         u = mda.Universe(args.trajfile, in_memory=True)
 
+    
     plot_data = defaultdict(dict)
     # if itp file is provided use it
     if args.itp_files:
@@ -90,14 +120,17 @@ def __main__():
         for file_handle in args.itp_files:
             with open(file_handle) as _file:
                 lines = _file.readlines()
-        read_itp(lines, ff)
+            read_itp(lines, ff)
 
+        interaction_mapper = ITPInteractionMapper(u, ff.blocks.values(), ff.blocks.keys())
+        
+        # evaluation of interactions
         h_score_dict = {'bonds': {},
                         'angles': {},
                         'dihedrals': {}}
         # loop over molecules
         for molname, block in ff.blocks.items():
-            interaction_groups, _ , _= itp_to_ag(block, molname, u)
+            interaction_groups, _, _ = interaction_mapper.get_interactions_group(molname)
             for inter_type in ['bonds', 'angles', 'dihedrals']:
                 for group_name, pair_idxs in interaction_groups[inter_type].items():
                     distr = interaction_distribution(u, inter_type, pair_idxs)
@@ -118,6 +151,19 @@ def __main__():
                                                          'Simulated': probs}
         if args.plots:
             make_distribution_plot(plot_data, args.plot_data)
-        report(h_score_dict, args.exclude_outliers)
+        report_interactions(h_score_dict, args.exclude_outliers)
+        
+        # evaluation of distances
+        for molname, block in ff.blocks.items():
+            score_m, plot_data = score_matrix(molname, 
+                                   block, 
+                                   u, 
+                                   distribution_files)
+
+            atom_names = [name for _, name in block.nodes(data='atomname')]
+            if args.plots:
+                make_matrix_plot(score_m, atom_names, name=f'score_matrix_{molname}')
+                make_distances_distribution_plot(plot_data, atom_names, name=f'distance_distributions_{molname}')
+            report_distances(score_m, molname, atom_names)
 
 __main__()

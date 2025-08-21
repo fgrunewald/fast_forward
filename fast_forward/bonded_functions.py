@@ -97,5 +97,6 @@ NORMAL_FUNCS = {"angles": _fast_angle,
                 "dihedrals": _fast_dih,
                 "virtual_sites3fd": _vs3fd,
                 "virtual_sites3out": _vs3out,
-                "virtual_sitesn": _virtual_sitesn
+                "virtual_sitesn": _virtual_sitesn,
+                "distances": _fast_pair_dists
                 }
