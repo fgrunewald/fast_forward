@@ -25,7 +25,7 @@ def _plotter(data, atom_list, inter_type, ax):
     ax.set_xlim(BINS_DICT[inter_type][0], BINS_DICT[inter_type][-1])
     ax.set_xlabel(X_LABELS[inter_type])
 
-def make_distribution_plot(fit_data, save_plot_data=False, axarr=None):
+def make_distribution_plot(fit_data, save_plot_data=None, axarr=None, name='distribution_plots'):
     '''
 
     Parameters
@@ -37,6 +37,8 @@ def make_distribution_plot(fit_data, save_plot_data=False, axarr=None):
         array of axes to plot the fitted distributions on
     save_plot_data: bool
         if True, save the underlying data for plots as a pickle file
+    name: str
+        name of the output file (default: distribution_plots)
     '''
 
     total_interactions = sum([len(fit_data[i]) for i in fit_data.keys()])
@@ -63,4 +65,4 @@ def make_distribution_plot(fit_data, save_plot_data=False, axarr=None):
     # need to make room for the title
     fig.subplots_adjust(hspace = 0.3)
 
-    fig.savefig(f'distribution_plots.png')
+    fig.savefig(f'{name}.png')

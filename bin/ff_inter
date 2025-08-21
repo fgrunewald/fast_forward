@@ -65,8 +65,9 @@ def __main__():
     parser.add_argument('-dists', default=None, const=".", nargs="?",
                         dest="distribution_data",
                         help="Save text files with time series and distribution data for interactions. Optionally provide a path (default: current dir).")
-    parser.add_argument('-plots', default=False, action="store_true",
-                        dest="plots", help="Save the fits of bonded interactions")
+    parser.add_argument('-plots', default=None, const=".", nargs="?",
+                        dest="plots",
+                        help="Plot the reference and fits of bonded interactions. Optionally provide a path (default: current dir).")
     parser.add_argument('-plot-data', default=False, action="store_true",
                         dest="plot_data", help="Save a pickle file containing the input data for the plots")
     parser.add_argument('-constraints', dest='constraint_convert', default=10000, type=int,
@@ -138,7 +139,7 @@ def __main__():
             # make plots if we want to
             if args.plots:
                 make_distribution_plot(fitter.plot_parameters,
-                                       args.plot_data)
+                                       args.plot_data, name =f'{args.plots}/fitted_interactions')
 
             # write out the itp
             itp_writer(molname,

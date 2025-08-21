@@ -66,8 +66,9 @@ def __main__():
     parser.add_argument('-i', type=str, dest="itp_files", help="itp file", nargs='*')
     parser.add_argument('-d', type=str, dest='reference',
                         help="Path to directory with reference distributions")
-    parser.add_argument('-plots', default=False, action='store_true', dest="plots",
-                        help="make plots comparing distributions")
+    parser.add_argument('-plots', default=None, const=".", nargs="?",
+                        dest="plots",
+                        help="Make plots comparing distributions. Optionally provide a path (default: current dir)")
     parser.add_argument('-outliers', default=False, action='store_true', dest='exclude_outliers',
                         help='exclude outliers from overall score')
     parser.add_argument('-plot-data', default=False, action='store_true', dest="plot_data",
@@ -117,7 +118,7 @@ def __main__():
                                                          "Reference": reference_data.T[1],
                                                          'Simulated': probs}
         if args.plots:
-            make_distribution_plot(plot_data, args.plot_data)
+            make_distribution_plot(plot_data, args.plot_data, name=f'{args.plots}/distribution_comparison')
         report(h_score_dict, args.exclude_outliers)
 
 __main__()
