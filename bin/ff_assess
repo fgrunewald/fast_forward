@@ -129,7 +129,7 @@ def __main__():
                         'dihedrals': {}}
         # loop over molecules
         for molname, block in ff.blocks.items():
-            interaction_groups, _ = interaction_mapper.get_interactions_group(molname)
+            interaction_groups, _, _ = interaction_mapper.get_interactions_group(molname)
             for inter_type in ['bonds', 'angles', 'dihedrals']:
                 for group_name, pair_idxs in interaction_groups[inter_type].items():
                     distr = interaction_distribution(u, inter_type, pair_idxs)

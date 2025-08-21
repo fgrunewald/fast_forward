@@ -115,7 +115,7 @@ def __main__():
             # calculate distributions for interaction
             if not args.itp_only:
                 guess_interactions(block)
-            interaction_groups, initial_parameters = interaction_mapper.get_interactions_group(molname)
+            interaction_groups, initial_parameters, block_indices = interaction_mapper.get_interactions_group(molname)
             for inter_type in RECOGNISED_INTERACTIONS:
                 for group_name, pair_idxs in interaction_groups[inter_type].items():
                     # make sure we know which kind of virtual site we're dealing with
@@ -125,7 +125,7 @@ def __main__():
                                                      args.prefix, args.distribution_data)
 
                     # fit the interactions
-                    fitter.fit_interaction(distr, pair_idxs, group_name, inter_type,
+                    fitter.fit_interaction(distr, block_indices[inter_type][group_name], group_name, inter_type,
                                            vs_constructors)
 
                     if inter_type in VIRTUALSITE_TYPES:
