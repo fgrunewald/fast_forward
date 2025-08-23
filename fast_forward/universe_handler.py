@@ -16,6 +16,7 @@ import numpy as np
 import networkx as nx
 import MDAnalysis as mda
 from MDAnalysis import transformations
+from MDAnalysis.core.topologyattrs import Moltypes, Molnums
 from pysmiles import PTE
 from pysmiles.smiles_helper import correct_aromatic_rings, increment_bond_orders
 from fast_forward.hydrogen import BUILD_HYDRO, find_helper_atoms
@@ -40,6 +41,14 @@ class UniverseHandler(mda.Universe):
         super().__init__(*args, **kwargs)
         # select which molecules to treat
         self.mol_names = mol_names
+
+        # We copy residue info as moleculetype info, if it's missing.
+        if not hasattr(self.atoms, "moltypes"):
+            moltypes = Moltypes(self.residues.resnames)
+            molnums = Molnums(range(len(self.residues)))
+            self.add_TopologyAttr(moltypes)
+            self.add_TopologyAttr(molnums)
+
         self.molecules = self.select_atoms("moltype " + " ".join(mol_names))
 
         # set some useful attributes
@@ -67,8 +76,8 @@ class UniverseHandler(mda.Universe):
 
     def shift_united_atom_carbons(self, association_dict):
         """
-        Given an atomgroup shift it's coordiantes
-        to where the center of geomtry would be if
+        Given an atomgroup shift it's coordinates
+        to where the center of geometry would be if
         hydrogens were included.
         """
         # much faster to make a bonded graph even of the entire system
@@ -77,6 +86,9 @@ class UniverseHandler(mda.Universe):
         # select the atoms to be treated
         select_string = "type " + " ".join(association_dict.keys())
         atoms_to_treat = self.select_atoms(select_string)
+        # so they can be properly mapped to carbons later, since united-atoms
+        # may end up with larger masses.
+        atoms_to_treat.masses = PTE['C']['AtomicMass'] 
         for atom in tqdm(atoms_to_treat):
             carbon_type = association_dict[atom.type]
             for ts in self.trajectory:
