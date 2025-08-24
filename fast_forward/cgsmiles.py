@@ -119,7 +119,7 @@ def cgsmiles_to_mapping(univ, cgsmiles_strs, mol_names, mol_matching=True):
                 break
         else:
             raise SyntaxError('No matching cgsmiles string found for '
-                              f'molecule {molname}.')
+                              f'molecule {mol_name}.')
 
         # assgin resids to the beads
         mappings = get_mappings(cg, univ, _match, mappings)
