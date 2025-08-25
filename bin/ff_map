@@ -86,16 +86,11 @@ def main():
         args.csorder = not args.cgsmiles_library
 
     print("INFO - Loading universe")
-    # load trajectory and guess bonds, if missing from the topology.
+    # load trajectory (bonds are implicitly guessed, if missing from the topology)
     init_universe = UniverseHandler(args.mol_names,
                                     args.tpr,
                                     args.traj,
                                     in_memory=True)
-    try:
-        init_universe.bonds
-    except mda.NoDataError:
-        init_universe.guess_TopologyAttrs(to_guess=['bonds'])
-
     if args.pbc_complete:
         print("INFO - PBC completing trajectory")
         init_universe.pbc_complete()

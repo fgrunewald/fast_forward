@@ -16,10 +16,10 @@ import numpy as np
 import networkx as nx
 import MDAnalysis as mda
 from MDAnalysis import transformations
-from MDAnalysis.core.topologyattrs import Moltypes, Molnums
 from pysmiles import PTE
 from pysmiles.smiles_helper import correct_aromatic_rings, increment_bond_orders
 from fast_forward.hydrogen import BUILD_HYDRO, find_helper_atoms
+from fast_forward.itp_to_ag import res_as_mol
 from tqdm import tqdm
 
 def assign_order(g):
@@ -39,15 +39,18 @@ class UniverseHandler(mda.Universe):
     """
     def __init__(self, mol_names, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        # guess bonds, if missing from the topology.
+        try:
+            self.bonds
+        except mda.NoDataError:
+            self.guess_TopologyAttrs(to_guess=['bonds'])
+
         # select which molecules to treat
         self.mol_names = mol_names
 
-        # We copy residue info as moleculetype info, if it's missing.
-        if not hasattr(self.atoms, "moltypes"):
-            moltypes = Moltypes(self.residues.resnames)
-            molnums = Molnums(range(len(self.residues)))
-            self.add_TopologyAttr(moltypes)
-            self.add_TopologyAttr(molnums)
+        # we copy residue info as moleculetype info, if it's missing.
+        res_as_mol(self)
 
         self.molecules = self.select_atoms("moltype " + " ".join(mol_names))
 
