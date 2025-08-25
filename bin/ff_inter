@@ -30,6 +30,8 @@ from fast_forward.interaction_distribution import interaction_distribution, VIRT
 from fast_forward.interaction_plots import make_distribution_plot
 from fast_forward.virtual_site_mass import mass_redistribution
 from fast_forward.interaction_finalising import interaction_finalising
+from fast_forward.constraint_coupling import report_constraint_coupling
+
 from vermouth.file_writer import DeferredFileWriter
 
 VERSION = 'fast_forward version {}'.format(fast_forward.__version__)
@@ -83,7 +85,8 @@ def __main__():
                         dest="itp_only", help="Use only interactions written into itp already, don't identify any more")
     parser.add_argument('-dist-matrix', default=False, action="store_true",
                         dest="dist_matrix", help="Save text files with time series and distribution data for all pairwise bead distances")
-
+    parser.add_argument('-lincs', default=False, action="store_true",
+                        dest="estimate_lincs", help="Estimate the LINCS order required for solving the constraints in the molecule(s)")
 
     args = parser.parse_args()
 
@@ -153,6 +156,9 @@ def __main__():
                     distr = interaction_distribution(u, inter_type, pair_idxs, group_name,
                                                     args.prefix, save=True) # always save distribution data for distances if dist_matrix is requested
 
+        # constraint coupling analysis
+        for molname, block in ff.blocks.items():
+            report_constraint_coupling(u, block, args.estimate_lincs)
     # write out using DeferredFileWriter to back up any existing files of the same names
     DeferredFileWriter().write()
 
