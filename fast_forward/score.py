@@ -3,8 +3,6 @@ from fast_forward.interaction_distribution import BINS_DICT, interaction_distrib
 from fast_forward.itp_to_ag import find_indices
 from collections import defaultdict
 
-
-
 def hellinger(p,q):
     return np.round(np.sqrt(np.sum(np.power((np.sqrt(p) - np.sqrt(q)),2))) / np.sqrt(2),2)
 

@@ -150,8 +150,6 @@ def __main__():
                 inter_type='distances'
                 interaction_groups = interaction_mapper.get_pairwise_interaction(molname)
                 for group_name, pair_idxs in interaction_groups[inter_type].items():
-
-                    # make sure we know which kind of virtual site we're dealing with
                     distr = interaction_distribution(u, inter_type, pair_idxs, group_name,
                                                     args.prefix, save=True) # always save distribution data for distances if dist_matrix is requested
 

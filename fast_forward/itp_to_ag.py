@@ -45,8 +45,18 @@ def find_indices(universe,
     return indices
 
 class ITPInteractionMapper:
-
+    """
+    Class to extract interaction groups from itp files
+    and map them to indices in an MDAnalysis Universe.
+    """
     def __init__(self, universe, blocks, molnames):
+        """
+        Parameters
+        ----------
+        universe: mda.Universe
+        blocks: list[vermouth.molecule.Block]
+        molnames: list[str]
+        """
         self.universe = universe
         self.blocks = dict(zip(molnames, blocks))
         # by default we try to match the molecule types
