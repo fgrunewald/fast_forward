@@ -6,18 +6,21 @@ import subprocess
 import numpy as np
 from MDAnalysis import Universe
 from vermouth.tests.helper_functions import find_in_path
+import pytest
 
-def test_ff_map(tmp_path, monkeypatch):
+@pytest.mark.parametrize('command_list, output_top, output_traj',
+                         ((['-f', GSH_AA_TRAJ,
+                           '-s', GSH_AA_TPR,
+                           '-m', GSH_MAP,
+                           '-mols', 'LIG',
+                           '-o', 'mapped.xtc'
+                            ], GSH_CG_GRO, GSH_CG_TRAJ),
+                         ))
+def test_ff_map(tmp_path, monkeypatch, command_list, output_top, output_traj):
 
     monkeypatch.chdir(tmp_path)
     ff_map = find_in_path(names=('ff_map', ))
-
-    command = [ff_map,
-        '-f', GSH_AA_TRAJ,
-        '-s', GSH_AA_TPR,
-        '-m', GSH_MAP,
-        '-mols', 'LIG', '-o', 'mapped.xtc',
-    ]
+    command = [ff_map, ] + command_list
 
     proc = subprocess.run(command, cwd='.', timeout=60, check=False,
                           stdout=subprocess.PIPE,
@@ -36,7 +39,7 @@ def test_ff_map(tmp_path, monkeypatch):
     # expect a .gro and .xtc from this command
     assert len(files) == 2
 
-    reference_universe = Universe(GSH_CG_GRO, GSH_CG_TRAJ)
+    reference_universe = Universe(output_top, output_traj)
     new_universe = Universe([i for i in files if '.gro' in i.name][0],
                             [i for i in files if '.xtc' in i.name][0],
                             )
