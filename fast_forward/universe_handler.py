@@ -16,10 +16,10 @@ import numpy as np
 import networkx as nx
 import MDAnalysis as mda
 from MDAnalysis import transformations
+from MDAnalysis.core.topologyattrs import Moltypes, Molnums
 from pysmiles import PTE
 from pysmiles.smiles_helper import correct_aromatic_rings, increment_bond_orders
 from fast_forward.hydrogen import BUILD_HYDRO, find_helper_atoms
-from fast_forward.itp_to_ag import res_as_mol
 from tqdm import tqdm
 
 def assign_order(g):
@@ -30,6 +30,21 @@ def assign_order(g):
             g.nodes[n2]['aromatic'] = True
     correct_aromatic_rings(g)
     return g
+
+def res_as_mol(universe):
+    """
+    For a universe without moltype/molnum info, promotes residues to molecules.
+
+    Changes universe in place. Does nothing if moltype/molnum info is already
+    available.
+    """
+    if hasattr(universe.atoms, "moltypes"):
+        return
+
+    moltypes = Moltypes(universe.residues.resnames)
+    molnums = Molnums(range(len(universe.residues)))
+    universe.add_TopologyAttr(moltypes)
+    universe.add_TopologyAttr(molnums)
 
 class UniverseHandler(mda.Universe):
     """
