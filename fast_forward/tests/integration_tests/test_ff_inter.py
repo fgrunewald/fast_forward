@@ -1,3 +1,4 @@
+import pytest
 
 from fast_forward.tests.datafiles import  GSH_CG_TPR, GSH_CG_TRAJ, GSH_ITP_INTIIAL, GSH_ITP_OUTPUT, GSH_DISTS
 
@@ -7,18 +8,20 @@ from vermouth.tests.helper_functions import find_in_path
 from glob import glob
 from vermouth.tests.integration_tests.test_integration import compare_itp
 from pathlib import Path
-def test_ff_inter(tmp_path, monkeypatch):
+
+@pytest.mark.parametrize('command_list, reference_distributions',
+                             ((['-f', GSH_CG_TRAJ,
+                                '-s', GSH_CG_TPR,
+                                '-i', GSH_ITP_INTIIAL,
+                                '-max-dihedral', '5',
+                                '-dists',], GSH_DISTS),)
+                         )
+def test_ff_inter(tmp_path, monkeypatch, command_list, reference_distributions):
 
     monkeypatch.chdir(tmp_path)
     ff_inter = find_in_path(names=('ff_inter', ))
 
-    command = [ff_inter,
-        '-f', GSH_CG_TRAJ,
-        '-s', GSH_CG_TPR,
-        '-i', GSH_ITP_INTIIAL,
-        '-max-dihedral', '5',
-        '-dists',
-    ]
+    command = [ff_inter, ] + command_list
 
     proc = subprocess.run(command, cwd='.', timeout=60, check=False,
                           stdout=subprocess.PIPE,
@@ -35,7 +38,7 @@ def test_ff_inter(tmp_path, monkeypatch):
     files = list(tmp_path.iterdir())
     assert files
 
-    reference_dats = glob(str(GSH_DISTS))
+    reference_dats = glob(str(reference_distributions))
     output_dats = [i for i in files if i.suffix == '.dat']
 
     # check we have the same set of output distributions as expected
