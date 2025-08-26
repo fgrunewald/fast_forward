@@ -26,7 +26,7 @@ from fast_forward.itp_to_ag import itp_to_ag
 from fast_forward.itp_parser_sub import read_itp, guess_interactions
 from fast_forward.interaction_fit import InteractionFitter
 from fast_forward.interactions_to_itp import itp_writer
-from fast_forward.interaction_distribution import interaction_distribution, INTERACTIONS, VS_TYPES
+from fast_forward.interaction_distribution import interaction_distribution, RECOGNISED_INTERACTIONS, VS_TYPES
 from fast_forward.interaction_plots import make_distribution_plot
 from fast_forward.virtual_site_mass import mass_redistribution
 from fast_forward.interaction_finalising import interaction_finalising
@@ -111,7 +111,7 @@ def __main__():
             if not args.itp_only:
                 guess_interactions(block)
             interaction_groups, initial_parameters, block_indices = itp_to_ag(block, molname, u)
-            for inter_type in RECOGNISED_INTERACTIONS:
+            for inter_name in RECOGNISED_INTERACTIONS:
                 for (group_name, pair_idxs), (parameter_type) in zip(interaction_groups[inter_name].items(), initial_parameters[inter_name].values()):
 
                     distr, inter_type = interaction_distribution(u, inter_name, pair_idxs, group_name,

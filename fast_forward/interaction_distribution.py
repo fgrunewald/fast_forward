@@ -17,6 +17,7 @@ INTERACTIONS = {'bonds': {'bins': np.arange(0, 7, 0.01)
                                    }
                 }
 VS_TYPES = [key for key in INTERACTIONS.keys() if 'virtual' in key]
+RECOGNISED_INTERACTIONS = list(INTERACTIONS.keys())
 
 def interaction_distribution(u, inter_name, pair_idxs, group_name="", prefix="", save=False, parameters=[]):
     # i.e. if inter_type not one of virtual_sitesn, virtual_sites3fd, etc.
