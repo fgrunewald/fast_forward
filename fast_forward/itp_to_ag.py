@@ -74,7 +74,7 @@ class ITPInteractionMapper:
                 self.match_values[molname] = list(set(resnames.values()))
             self.match_attr = "resnames"
 
-    def get_interactions_group(self, molname):
+    def get_interactions_group(self, molname, itp_mode=False):
         """
         Iterate over interactions in itp file and return dict of
         grouped indices corresponding to the atoms in universe.
@@ -87,7 +87,14 @@ class ITPInteractionMapper:
         for inter_type in block.interactions:
             for inter in block.interactions[inter_type]:
                 atoms = inter.atoms
-                group = inter.meta.get("comment", None)
+                if itp_mode == "all":
+                    atomnames=[]
+                    for atom in atoms:
+                        atomnames.append(block.nodes[atom]['atomname'])
+                    group = "_".join(atomnames)
+                    inter.meta["comment"] = group
+                else:
+                    group = inter.meta.get("comment", None)
                 if group:
                     indices = find_indices(self.universe,
                                         atoms,

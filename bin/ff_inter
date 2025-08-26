@@ -81,8 +81,9 @@ def __main__():
                         help='Maximum multiplicity of dihedral to try stacking during dihedral fitting')
     parser.add_argument('-dihedral-scaling', dest='dihedral_scaling', type=int, default=1e3,
                         help='Scale factor for strength of proper dihedral terms from fit to potential')
-    parser.add_argument('-itp-only', default=False, action="store_true",
-                        dest="itp_only", help="Use only interactions written into itp already, don't identify any more")
+    parser.add_argument('-itp-mode', dest="itp_mode", nargs="?", choices=[None, "comments", "all"],
+                        default=None, const="comments",
+                        help="Use only interactions written into itp already. Will use only commented interactions by default, or all interactions if 'all' is specified.")
     parser.add_argument('-dist-matrix', default=False, action="store_true",
                         dest="dist_matrix", help="Save text files with time series and distribution data for all pairwise bead distances")
     parser.add_argument('-lincs', default=False, action="store_true",
@@ -116,9 +117,9 @@ def __main__():
             # check for virtualsites
             vs_constructors = virtualsite_atoms(block)
             # calculate distributions for interaction
-            if not args.itp_only:
+            if not args.itp_mode:
                 guess_interactions(block)
-            interaction_groups, initial_parameters, block_indices = interaction_mapper.get_interactions_group(molname)
+            interaction_groups, initial_parameters, block_indices = interaction_mapper.get_interactions_group(molname, args.itp_mode)
             for inter_type in RECOGNISED_INTERACTIONS:
                 for group_name, pair_idxs in interaction_groups[inter_type].items():
                     # make sure we know which kind of virtual site we're dealing with
