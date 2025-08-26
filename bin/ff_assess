@@ -73,6 +73,9 @@ def __main__():
                         help='exclude outliers from overall score')
     parser.add_argument('-plot-data', default=False, action='store_true', dest="plot_data",
                         help='save data for making plots as single pickle file')
+    parser.add_argument('-dists', default=False, action='store_true',
+                        dest="distribution_data",
+                        help="Save text files with time series and distribution data for interactions")
 
     args = parser.parse_args()
 
@@ -101,7 +104,7 @@ def __main__():
             interaction_groups, _ , _= itp_to_ag(block, molname, u)
             for inter_type in ['bonds', 'angles', 'dihedrals']:
                 for group_name, pair_idxs in interaction_groups[inter_type].items():
-                    distr = interaction_distribution(u, inter_type, pair_idxs)
+                    distr = interaction_distribution(u, inter_type, pair_idxs, save=args.distribution_data)
                     # calculate simulation distribution
                     probs = distr.T[1]
                     # read in reference distribution
