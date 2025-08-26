@@ -75,7 +75,7 @@ def get_CH(atom, helper1, helper2, helper3):
     # CH bond is on the opposite direction.
     unit_vect_H = u_vect(-v2)
     coor_H = LENGTH_CH_BOND * unit_vect_H + atom
-    return [coor_H]
+    return coor_H
 
 
 def get_CH2(atom, helper1, helper2):
@@ -201,7 +201,7 @@ def get_CH_double_bond(atom, helper1, helper2):
     # Reconstruct H by rotating v3 by theta.
     unit_vect_H = apply_rotation(v3, rotation_axis, theta)
     coor_H = LENGTH_CH_BOND * unit_vect_H + atom
-    return [coor_H]
+    return coor_H
 
 def match_attributes(atom, attributes):
     for attr, value in attributes.items():
