@@ -75,11 +75,22 @@ def report_constraint_coupling(u, block, estimate_lincs=False):
         Whether to report the estimated LINCS order required for the constraints, defaults to False
     '''
 
-    A = compute_coupling(u, block.interactions['constraints'])
+    constraints = block.interactions['constraints']
+
+    if len(constraints) <= 0:
+        if estimate_lincs:
+            print(f"[ Constraint Coupling Report for {block.name} ]\nNo constraints coupling detected.\n")
+        return
+    A = compute_coupling(u, constraints)
 
     # eigenvalues
     w, _ = np.linalg.eig(A)
     eig_max = np.abs(w).max() # lambda_max
+
+    if eig_max == 0:
+        if estimate_lincs:
+            print(f"[ Constraint Coupling Report for {block.name} ]\nNo constraints coupling detected.\n")
+        return
 
     # ESTIMATE LINCS ORDER:
     lincs_order = int(np.log(0.4**4)/np.log(eig_max))
