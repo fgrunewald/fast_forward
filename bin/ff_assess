@@ -8,7 +8,7 @@ import numpy as np
 import MDAnalysis as mda
 import vermouth.forcefield
 import fast_forward
-from fast_forward.interaction_distribution import interaction_distribution, BINS_DICT
+from fast_forward.interaction_distribution import interaction_distribution
 from fast_forward.itp_to_ag import itp_to_ag
 from fast_forward.itp_parser_sub import read_itp
 from fast_forward.interaction_plots import make_distribution_plot
@@ -53,7 +53,7 @@ def report(h_score_dict, exclude_outliers=False):
                 h_score.append(score)
 
     printable = buff.format(mean=np.array(h_score).mean(),
-                      std=np.array(h_score).std())
+                            std=np.array(h_score).std())
 
     print(printable)
     with open('report.out', 'w') as fout:
@@ -97,7 +97,7 @@ def __main__():
                         'dihedrals': {}}
         # loop over molecules
         for molname, block in ff.blocks.items():
-            interaction_groups, _ = itp_to_ag(block, molname, u)
+            interaction_groups, _ , _= itp_to_ag(block, molname, u)
             for inter_type in ['bonds', 'angles', 'dihedrals']:
                 for group_name, pair_idxs in interaction_groups[inter_type].items():
                     distr = interaction_distribution(u, inter_type, pair_idxs)
