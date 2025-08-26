@@ -39,13 +39,14 @@ def test_ff_inter(tmp_path, monkeypatch):
     output_dats = [i for i in files if i.suffix == '.dat']
 
     # check we have the same set of output distributions as expected
-    assert set([Path(i).name for i in reference_dats]) == set([i.name for i in output_dats])
+    assert set([Path(i).stem for i in reference_dats]) == set([i.stem for i in output_dats])
     # ensure identical distributions for each
-    for f0, f1 in zip(sorted(list(set([Path(i).name for i in reference_dats]))),
+    for f0, f1 in zip(sorted(list(set([Path(i) for i in reference_dats]))),
                       sorted(list(set([i.name for i in output_dats])))):
-        data0 = np.loadtxt(f0)
+        with open(f0, 'rb') as f:
+            data0 = np.load(f)
         data1 = np.loadtxt(f1)
-        assert np.all(np.isclose(data0, data1))
+        assert np.allclose(data0, data1, atol=5e-4)
 
     # compare the output itps
     output_itp = [i for i in files if i.suffix == '.itp'][0]

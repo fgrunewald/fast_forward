@@ -23,6 +23,6 @@ GSH_MAP = TEST_DATA / 'GSH/GSH.map'
 
 GSH_ITP_INTIIAL = TEST_DATA / 'GSH/GSH_initial.itp'
 GSH_ITP_OUTPUT = TEST_DATA / 'GSH/interactions/GSH.itp'
-GSH_DISTS = TEST_DATA / 'GSH/interactions/*.dat'
+GSH_DISTS = TEST_DATA / 'GSH/interactions/*.npy'
 
 del Path
