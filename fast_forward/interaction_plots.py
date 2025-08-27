@@ -6,7 +6,7 @@ Functions for plotting fitted interaction distributions
 import matplotlib.pyplot as plt
 import numpy as np
 import pickle
-from .interaction_distribution import BINS_DICT
+from .interaction_distribution import INTERACTIONS
 
 X_LABELS={'bonds': 'Distance',
           'angles': 'Angle',
@@ -20,11 +20,12 @@ def _plotter(data, atom_list, inter_type, ax):
     for idx, key in enumerate(needed_keys):
         ax.plot(data['x'],
                 data[key],
-                c = cols[idx],
+                c=cols[idx],
                 label=key)
     ax.legend()
     ax.set_title(f'{atom_list} {inter_type}')
-    ax.set_xlim(BINS_DICT[inter_type][0], BINS_DICT[inter_type][-1])
+    ax.set_xlim(INTERACTIONS[inter_type].get('bins')[0],
+                INTERACTIONS[inter_type].get('bins')[-1])
     ax.set_xlabel(X_LABELS[inter_type])
 
 

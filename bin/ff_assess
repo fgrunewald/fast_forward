@@ -60,7 +60,7 @@ def report_interactions(score_dict, exclude_outliers=False):
                 h_score.append(score)
 
     printable = buff.format(mean=np.array(h_score).mean(),
-                      std=np.array(h_score).std())
+                            std=np.array(h_score).std())
 
     print(printable)
     with open('report_interactions.out', 'w') as fout:
