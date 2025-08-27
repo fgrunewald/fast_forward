@@ -100,9 +100,11 @@ def report_distances(score_matrix, molname, atom_names):
             # First element is the atom name, rest are scores
             buff += f"{row[0]:>5} " + " ".join(f"{float(score):>5.2f}" for score in row[1:]) + "\n"
 
+    # Exclude diagonal (0) for mean and std calculation
+    off_diag = score_matrix[~np.eye(score_matrix.shape[0], dtype=bool)]
     printable = buff.format(molname=molname,
-                      mean=np.mean(score_matrix),
-                      std=np.std(score_matrix),
+                      mean=np.mean(off_diag),
+                      std=np.std(off_diag),
                       max=np.max(score_matrix))
     print(printable)
     with open('report_distances.out', 'w') as fout:
