@@ -41,7 +41,7 @@ def calc_score(ref, test, weights=[0.7, 0.3], bins=INTERACTIONS['distances']['bi
     score = hellinger(ref, test) * weights[0] + mean_diff_norm * weights[1] # score is a weighted sum of Hellinger distance and mean difference normalized by standard deviation
     return np.round(score, 2)
 
-def score_matrix(molname, block, universe, distribution_files, score_weights=[0.7, 0.3], include_constrains=False):
+def score_matrix(molname, block, universe, distribution_files, hellinger_weight=0.7, include_constrains=False):
     """
     Calculate the score matrix for all pairwise distances in the molecule block.
 
@@ -87,9 +87,9 @@ def score_matrix(molname, block, universe, distribution_files, score_weights=[0.
             
             # if the distance is constrained, the mean difference is weighted more
             if {node1, node2} in constraints and not include_constrains:
-                weigths = [0.1, 0.9] # can be adjusted in the future
+                weigths = [0.1,0.9] # can be adjusted in the future
             else:
-                weigths = score_weights
+                weigths = [hellinger_weight, 1-hellinger_weight]
 
             # calculate score and populate matrix
             score = calc_score(probs, reference_data.T[1], weigths)

@@ -123,8 +123,8 @@ def __main__():
                         help='exclude outliers from overall score')
     parser.add_argument('-plot-data', default=False, action='store_true', dest="plot_data",
                         help='save data for making plots as single pickle file')
-    parser.add_argument('-score-weights', dest='score_weigths', nargs=2, type=float, default=[0.7, 0.3],
-                        help='weights for score, should sum to 1.0. First value is weight for Hellinger distance, second for mean difference')
+    parser.add_argument('-score-weight', dest='hellinger_weight', type=float, default=0.7,
+                        help='weight of the Hellinger distance in the distance score')
     parser.add_argument('-include-constraints', default=False, action='store_true', dest='include_constraints',
                         help='fully include constrained distances in the distance score score calculation')
 
@@ -184,7 +184,7 @@ def __main__():
                                    block, 
                                    u, 
                                    distribution_files,
-                                   args.score_weigths,
+                                   args.hellinger_weight,
                                    args.include_constraints)
 
             atom_names = [name for _, name in block.nodes(data='atomname')]
