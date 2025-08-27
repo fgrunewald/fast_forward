@@ -173,8 +173,8 @@ def main():
         with mda.Writer(outpath.stem+'.gro',
                         multiframe=False,
                         n_atoms=len(cg_universe.atoms)) as first_frame:
-            first_frame.write(cg_beads, box=np.array([7.0, 7.0, 7.0])) # Set box size to 7x7x7 nm³ to avoid gmx grompp errors
-    else:
+                        first_frame.box = np.array([7.0, 7.0, 7.0])# Set box size to 7x7x7 nm³ to avoid gmx grompp errors
+                        first_frame.write(cg_beads) 
         cg_universe.atoms.positions = cg_universe.trajectory.coordinate_array[0]
         cg_beads = cg_universe.atoms
         cg_universe.atoms.dimensions = init_universe.atoms.dimensions
