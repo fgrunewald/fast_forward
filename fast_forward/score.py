@@ -10,7 +10,7 @@ def std_dev_hist(hist, bins):
     bin_centers = (bins[:-1] + bins[1:]) / 2
     return np.sqrt(np.cov(bin_centers, aweights=hist, bias=True))
 
-def calc_score(ref, test, bins=INTERACTIONS['distances']['bins']):
+def calc_score(ref, test, bins=INTERACTIONS['distances']['bins'], weights=[0.7, 0.3]):
     '''
     Compute the score between two distributions.
     The score is a weighted sum of the Hellinger distance and the difference in means of the distributions
@@ -38,10 +38,10 @@ def calc_score(ref, test, bins=INTERACTIONS['distances']['bins']):
     mean_diff = np.average(bin_centers, weights=ref) - np.average(bin_centers, weights=test)
     mean_diff_norm = np.min([np.abs(mean_diff), 1]) # normalize mean difference by standard deviation of reference distribution, if it is zero, use 1 as maximum penalty
 
-    score = hellinger(ref, test) * 0.7 + mean_diff_norm * 0.3 # score is a weighted sum of Hellinger distance and mean difference normalized by standard deviation
+    score = hellinger(ref, test) * weights[0] + mean_diff_norm * weights[1] # score is a weighted sum of Hellinger distance and mean difference normalized by standard deviation
     return np.round(score, 2)
 
-def score_matrix(molname, block, universe, distribution_files):
+def score_matrix(molname, block, universe, distribution_files, score_weights=[0.7, 0.3]):
     """
     Calculate the score matrix for all pairwise distances in the molecule block.
 
@@ -81,7 +81,7 @@ def score_matrix(molname, block, universe, distribution_files):
                 print(f"{group_name} file not found!")
                 continue
             # calculate score and populate matrix
-            score = calc_score(probs, reference_data.T[1])
+            score = calc_score(probs, reference_data.T[1], weights=score_weights)
             score_matrix[node1, node2] = float(score)
             score_matrix[node2, node1] = float(score)
             plot_data['distances'][group_name] = {"x": reference_data.T[0],
