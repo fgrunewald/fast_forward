@@ -17,7 +17,7 @@ ARR_SHAPES = {'virtual_sitesn': 1,
 
 RECOGNISED_INTERACTIONS = ['bonds', 'angles', 'dihedrals', 'virtual_sitesn', 'virtual_sites3', 'distances']
 
-def interaction_distribution(u, inter_type, pair_idxs, group_name="", prefix="", save=False):
+def interaction_distribution(u, inter_type, pair_idxs, group_name="", prefix="", save=None):
     # i.e. if inter_type not one of virtual_sitesn, virtual_sites3fd, etc.
     if inter_type not in [v for subdict in VIRTUALSITE_TYPES.values() for v in subdict.values()]:
         nframes = u.trajectory.n_frames
@@ -35,7 +35,8 @@ def interaction_distribution(u, inter_type, pair_idxs, group_name="", prefix="",
         center_points = edges[:-1] + np.diff(edges)/2.
         distr = np.transpose((center_points, probs))
         if save:
-            np.savetxt("{prefix}{name}_{inter_type}_distr.dat".format(name=group_name,
+            np.savetxt("{dir}/{prefix}{name}_{inter_type}_distr.dat".format(dir=save,
+                                                                      name=group_name,
                                                                       inter_type=inter_type,
                                                                       prefix=prefix),
                        distr)

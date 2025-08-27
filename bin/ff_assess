@@ -115,12 +115,16 @@ def __main__():
     parser.add_argument('-i', type=str, dest="itp_files", help="itp file", nargs='*')
     parser.add_argument('-d', type=str, dest='reference',
                         help="Path to directory with reference distributions")
-    parser.add_argument('-plots', default=False, action='store_true', dest="plots",
-                        help="make plots comparing distributions")
+    parser.add_argument('-plots', default=None, const=".", nargs="?",
+                        dest="plots",
+                        help="Make plots comparing distributions. Optionally provide a path (default: current dir)")
     parser.add_argument('-outliers', default=False, action='store_true', dest='exclude_outliers',
                         help='exclude outliers from overall score')
     parser.add_argument('-plot-data', default=False, action='store_true', dest="plot_data",
                         help='save data for making plots as single pickle file')
+    parser.add_argument('-dists', default=False, action='store_true',
+                        dest="distribution_data",
+                        help="Save text files with time series and distribution data for interactions")
 
     args = parser.parse_args()
 
@@ -152,7 +156,7 @@ def __main__():
             interaction_groups, _, _ = interaction_mapper.get_interactions_group(molname)
             for inter_type in ['bonds', 'angles', 'dihedrals']:
                 for group_name, pair_idxs in interaction_groups[inter_type].items():
-                    distr = interaction_distribution(u, inter_type, pair_idxs)
+                    distr = interaction_distribution(u, inter_type, pair_idxs, save=args.distribution_data)
                     # calculate simulation distribution
                     probs = distr.T[1]
                     # read in reference distribution

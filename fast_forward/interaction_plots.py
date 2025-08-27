@@ -45,7 +45,7 @@ def _plotter_distance_distribution(data, ax):
     ax.yaxis.set_ticks([])
     ax.set_xlim(x_min - x_pad, x_max + x_pad)
 
-def make_distribution_plot(fit_data, save_plot_data=False, axarr=None, name='distribution_plots'):
+def make_distribution_plot(fit_data, save_plot_data=None, axarr=None, name='distribution_plots'):
     '''
 
     Parameters
@@ -57,8 +57,6 @@ def make_distribution_plot(fit_data, save_plot_data=False, axarr=None, name='dis
         array of axes to plot the fitted distributions on
     save_plot_data: bool
         if True, save the underlying data for plots as a pickle file
-    name: str
-        name of the output file (default: distribution_plots)
     '''
 
     total_interactions = sum([len(fit_data[i]) for i in fit_data.keys()])
@@ -66,6 +64,9 @@ def make_distribution_plot(fit_data, save_plot_data=False, axarr=None, name='dis
     if not axarr:
         ncols = 5
         nrows = -(total_interactions // -5) # upside-down floor division
+        if nrows == 0:
+            print("No interactions to plot!")
+            return
         fig, axarr = plt.subplots(nrows=nrows, ncols=ncols,
                                figsize=(ncols*4, nrows*4))
 
