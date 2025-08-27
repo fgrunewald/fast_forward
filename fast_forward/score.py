@@ -10,7 +10,7 @@ def std_dev_hist(hist, bins):
     bin_centers = (bins[:-1] + bins[1:]) / 2
     return np.sqrt(np.cov(bin_centers, aweights=hist, bias=True))
 
-def calc_score(ref, test, bins=INTERACTIONS['distances']['bins'], weights=[0.7, 0.3]):
+def calc_score(ref, test, weights=[0.7, 0.3], bins=INTERACTIONS['distances']['bins']):
     '''
     Compute the score between two distributions.
     The score is a weighted sum of the Hellinger distance and the difference in means of the distributions
@@ -41,7 +41,7 @@ def calc_score(ref, test, bins=INTERACTIONS['distances']['bins'], weights=[0.7, 
     score = hellinger(ref, test) * weights[0] + mean_diff_norm * weights[1] # score is a weighted sum of Hellinger distance and mean difference normalized by standard deviation
     return np.round(score, 2)
 
-def score_matrix(molname, block, universe, distribution_files, score_weights=[0.7, 0.3]):
+def score_matrix(molname, block, universe, distribution_files, score_weights=[0.7, 0.3], include_constrains=False):
     """
     Calculate the score matrix for all pairwise distances in the molecule block.
 
@@ -62,6 +62,10 @@ def score_matrix(molname, block, universe, distribution_files, score_weights=[0.
     natoms = len(block.nodes)
     score_matrix = np.zeros((natoms, natoms))
 
+    constraints = []
+    for constraint in block.interactions['constraints']:
+        constraints.append(set(constraint.atoms))
+
     for node1, name1 in block.nodes(data='atomname'):
         for node2, name2 in list(block.nodes(data='atomname'))[node1+1:]:
             atoms = np.array([node1, node2])
@@ -80,8 +84,15 @@ def score_matrix(molname, block, universe, distribution_files, score_weights=[0.
             except IndexError:
                 print(f"{group_name} file not found!")
                 continue
+            
+            # if the distance is constrained, the mean difference is weighted more
+            if {node1, node2} in constraints and not include_constrains:
+                weigths = [0.1, 0.9] # can be adjusted in the future
+            else:
+                weigths = score_weights
+
             # calculate score and populate matrix
-            score = calc_score(probs, reference_data.T[1], weights=score_weights)
+            score = calc_score(probs, reference_data.T[1], weigths)
             score_matrix[node1, node2] = float(score)
             score_matrix[node2, node1] = float(score)
             plot_data['distances'][group_name] = {"x": reference_data.T[0],
