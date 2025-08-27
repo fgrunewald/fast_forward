@@ -46,6 +46,9 @@ def make_distribution_plot(fit_data, save_plot_data=None, axarr=None, name='dist
     if not axarr:
         ncols = 5
         nrows = -(total_interactions // -5) # upside-down floor division
+        if nrows == 0:
+            print("No interactions to plot!")
+            return
         fig, axarr = plt.subplots(nrows=nrows, ncols=ncols,
                                figsize=(ncols*4, nrows*4))
 
