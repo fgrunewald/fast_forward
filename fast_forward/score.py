@@ -1,5 +1,5 @@
 import numpy as np
-from fast_forward.interaction_distribution import BINS_DICT, interaction_distribution
+from fast_forward.interaction_distribution import INTERACTIONS, interaction_distribution
 from fast_forward.itp_to_ag import find_indices
 from collections import defaultdict
 
@@ -10,7 +10,7 @@ def std_dev_hist(hist, bins):
     bin_centers = (bins[:-1] + bins[1:]) / 2
     return np.sqrt(np.cov(bin_centers, aweights=hist, bias=True))
 
-def calc_score(ref, test, bins=BINS_DICT['distances']):
+def calc_score(ref, test, bins=INTERACTIONS['distances']['bins']):
     '''
     Compute the score between two distributions.
     The score is a weighted sum of the Hellinger distance and the difference in means of the distributions
@@ -73,7 +73,7 @@ def score_matrix(molname, block, universe, distribution_files):
                             natoms=natoms)
             distr = interaction_distribution(universe, 'distances', indices)
             # calculate simulation distribution
-            probs = distr.T[1]
+            probs = distr[0].T[1]
             # read in reference distribution
             try:
                 reference_data = np.loadtxt([i for i in distribution_files if group_name in i and 'distances' in i][0])

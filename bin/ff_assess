@@ -156,7 +156,7 @@ def __main__():
                 for group_name, pair_idxs in interaction_groups[inter_type].items():
                     distr = interaction_distribution(u, inter_type, pair_idxs)
                     # calculate simulation distribution
-                    probs = distr.T[1]
+                    probs = distr[0].T[1]
                     # read in reference distribution
                     try:
                         reference_data = np.loadtxt([i for i in distribution_files if group_name in i and inter_type in i][0])
