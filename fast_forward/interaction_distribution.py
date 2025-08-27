@@ -27,7 +27,8 @@ def interaction_distribution(u, inter_type, pair_idxs, group_name="", prefix="",
             time_series[idx*nframes:(idx+1)*nframes] = NORMAL_FUNCS[inter_type](*pair_pos)
 
         if save:
-            np.savetxt("{prefix}{name}_{inter_type}.dat".format(name=group_name,
+            np.savetxt("{prefix}{name}_{inter_type}.dat".format(dir=save,
+                                                                name=group_name,
                                                                 inter_type=inter_type,
                                                                 prefix=prefix),
                        time_series)

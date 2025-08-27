@@ -155,13 +155,15 @@ def __main__():
                        ff.blocks[molname],
                        command_used=' '.join(sys.argv),
                        )
+        if not args.distribution_data:
+            args.distribution_data = "." # always save distribution data for distances if dist_matrix is requested
         if args.dist_matrix: # calculate and save the timeseries and distributions of all interactions
             for molname, block in ff.blocks.items():
                 inter_type='distances'
                 interaction_groups = interaction_mapper.get_pairwise_interaction(molname)
                 for group_name, pair_idxs in interaction_groups[inter_type].items():
                     distr = interaction_distribution(u, inter_type, pair_idxs, group_name,
-                                                    args.prefix, save=True) # always save distribution data for distances if dist_matrix is requested
+                                                    args.prefix, save=args.distribution_data) 
 
         # constraint coupling analysis
         for molname, block in ff.blocks.items():
