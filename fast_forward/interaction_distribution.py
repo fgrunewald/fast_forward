@@ -1,6 +1,5 @@
+import sys
 import numpy as np
-from MDAnalysis.topology.tpr.setting import interaction_types
-
 from fast_forward.bonded_functions import NORMAL_FUNCS
 
 INTERACTIONS = {'bonds': {'bins': np.arange(0, 7, 0.01)
@@ -54,15 +53,18 @@ def interaction_distribution(u, inter_name, pair_idxs, group_name="", prefix="",
         return distr, inter_type
 
     else:
-        inter_type = INTERACTIONS[inter_name].get('interaction_types')[parameters[0]]
-        vs_fitted = np.zeros((len(pair_idxs), int(INTERACTIONS[inter_name].get('array_shape').get(inter_type))))
-        for idx, idxs in enumerate(pair_idxs):
-            pair_pos = [u.trajectory.coordinate_array[:, pair, :] for pair in idxs]
-            vs_fitted[idx] = NORMAL_FUNCS[inter_type](*pair_pos)
-        if save:
-            np.savetxt("{prefix}{name}_{inter_type}.dat".format(name=group_name,
-                                                                inter_type=inter_type,
-                                                                prefix=prefix),
-                       vs_fitted)
-        return vs_fitted, inter_type
-
+        inter_type = INTERACTIONS[inter_name].get('interaction_types').get(parameters[0], None)
+        if inter_type is not None:
+            vs_fitted = np.zeros((len(pair_idxs), int(INTERACTIONS[inter_name].get('array_shape').get(inter_type))))
+            for idx, idxs in enumerate(pair_idxs):
+                pair_pos = [u.trajectory.coordinate_array[:, pair, :] for pair in idxs]
+                vs_fitted[idx] = NORMAL_FUNCS[inter_type](*pair_pos)
+            if save:
+                np.savetxt("{prefix}{name}_{inter_type}.dat".format(name=group_name,
+                                                                    inter_type=inter_type,
+                                                                    prefix=prefix),
+                           vs_fitted)
+            return vs_fitted, inter_type
+        else:
+            print('Virtual site interaction type requested is not currently implemented. Please reconsider topology.')
+            sys.exit(1)
