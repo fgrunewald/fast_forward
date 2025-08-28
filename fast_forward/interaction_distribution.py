@@ -1,4 +1,6 @@
 import numpy as np
+from MDAnalysis.topology.tpr.setting import interaction_types
+
 from fast_forward.bonded_functions import NORMAL_FUNCS
 
 INTERACTIONS = {'bonds': {'bins': np.arange(0, 7, 0.01)
@@ -10,9 +12,16 @@ INTERACTIONS = {'bonds': {'bins': np.arange(0, 7, 0.01)
                 'virtual_sitesn': {'interaction_types': {'1': 'virtual_sitesn'},
                                    'array_shape': {'virtual_sitesn': 1}
                                    },
-                'virtual_sites3': {'interaction_types': {'2': 'virtual_sites3fd',
+                'virtual_sites2': {'interaction_types': {'1': 'virtual_sites2',
+                                                         '2': 'virtual_sites2fd'},
+                                   'array_shape': {'virtual_sites2': 1,
+                                                   'virtual_sites2fd': 1}
+                                   },
+                'virtual_sites3': {'interaction_types': {'1': 'virtual_sites3',
+                                                         '2': 'virtual_sites3fd',
                                                          '4': 'virtual_sites3out'},
-                                   'array_shape': {'virtual_sites3fd': 2,
+                                   'array_shape': {'virtual_sites3': 2,
+                                                   'virtual_sites3fd': 2,
                                                    'virtual_sites3out': 3}
                                    }
                 }
