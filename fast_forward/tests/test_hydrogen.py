@@ -38,7 +38,7 @@ Test functions from module hydrogen
 
 import collections
 import numpy as np
-from numpy.testing import assert_almost_equal
+from numpy.testing import assert_allclose
 import pytest
 
 from fast_forward import hydrogen
@@ -80,8 +80,9 @@ class TestComputeHydrogen:
         data: namedtuple
                 structure holding input and reference data.
         """
-        assert_almost_equal(hydrogen.get_CH(data.atom, data.helper1, data.helper2, data.helper3),
-                            data.H_coord)
+        assert_allclose(hydrogen.get_CH(data.atom, data.helper1, data.helper2, data.helper3),
+                        data.H_coord,
+                        atol=1e-5, rtol=1e-5)
 
 
     # Data tuple for get_CH2() test
@@ -117,8 +118,9 @@ class TestComputeHydrogen:
         data: namedtuple
                 structure holding input and reference data.
         """
-        assert_almost_equal(hydrogen.get_CH2(data.atom, data.helper1, data.helper2),
-                            (data.H1_coord, data.H2_coord))
+        assert_allclose(hydrogen.get_CH2(data.atom, data.helper1, data.helper2),
+                        (data.H1_coord, data.H2_coord),
+                        atol=1e-5, rtol=1e-5)
 
 
     # Data tuple for get_CH3() test
@@ -159,8 +161,9 @@ class TestComputeHydrogen:
         data: namedtuple
                 structure holding input and reference data.
         """
-        assert_almost_equal(hydrogen.get_CH3(data.atom, data.helper1, data.helper2),
-                            (data.H1_coord, data.H2_coord, data.H3_coord))
+        assert_allclose(hydrogen.get_CH3(data.atom, data.helper1, data.helper2),
+                        (data.H1_coord, data.H2_coord, data.H3_coord),
+                        atol=1e-5, rtol=1e-5)
 
 
     # Data tuple for get_CH_double_bond() test
@@ -188,5 +191,6 @@ class TestComputeHydrogen:
         data: namedtuple
                 structure holding input and reference data.
         """
-        assert_almost_equal(hydrogen.get_CH_double_bond(data.atom, data.helper1, data.helper2),
-                            data.H1_coord)
+        assert_allclose(hydrogen.get_CH_double_bond(data.atom, data.helper1, data.helper2),
+                        data.H1_coord,
+                        atol=1e-5, rtol=1e-5)

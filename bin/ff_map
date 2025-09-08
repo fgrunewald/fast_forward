@@ -54,7 +54,7 @@ def main():
                             help='any number of cgsmiles strings.')
     file_group.add_argument('-m', dest='map_file', type=str, default="",
                              help='.mapping file or path to directory of .map files')
-    file_group.add_argument('-o', dest='outpath', type=str,
+    file_group.add_argument('-o', dest='outpath', type=str, required=True,
                             help='name of the mapped trajectory (XTC/GRO). If trajectory, first frame will also be '
                                  'written as a separate gro file')
 
@@ -68,12 +68,25 @@ def main():
     mapping_group.add_argument('-add_H', dest='h_association', nargs='+', type=lambda s: s.split(':'),
                                 default=[],
                                help='atom-types corresponding to CH3, CH2, CH1 for aliphatic groups and CH2d for double bonds.')
+    # Hack to get GROMACS-style boolean flag behavior (argparse.BooleanOptionalAction
+    #  only works if flags have double leading dashes). The default to 'cgsorder'
+    #  is the way to get that string to show up in the -h list, but it always gets
+    #  overridden later.
+    mapping_group.add_argument('-cgsorder', dest='cgsorder', action='store_true', help=argparse.SUPPRESS)
+    mapping_group.add_argument('-nocgsorder', dest='cgsorder', action='store_false', help=argparse.SUPPRESS)
+    mapping_group.add_argument('-[no]cgsorder', dest='cgsorder', action='store_false',
+                               help='Whether cgsmiles strings passed with -cgs or -cgsl are in the same order as -mols')
+    mapping_group.set_defaults(cgsorder='assume yes if passed only with -cgs and no if -cgsl is used')
     mapping_group.add_argument('-lib', dest='library', help='loads library files', default=None)
 
     args = parser.parse_args()
+ 
+    # to replace the cgsorder default string hack
+    if not isinstance(args.cgsorder, bool):
+        args.cgsorder = not args.cgsmiles_library
 
     print("INFO - Loading universe")
-    # load trajectory
+    # load trajectory (bonds are implicitly guessed, if missing from the topology)
     init_universe = UniverseHandler(args.mol_names,
                                     args.tpr,
                                     args.traj,
@@ -128,7 +141,8 @@ def main():
         print("INFO - Mapping CGsmiles to universe.")
         mapped_atoms, bead_idxs, mappings, weights = cgsmiles_to_mapping(init_universe,
                                                                          cgsmiles_strs,
-                                                                         args.mol_names)
+                                                                         args.mol_names,
+                                                                         mol_matching=args.cgsorder)
     n_frames = len(init_universe.trajectory)
     print("INFO - Mapping universe - positions")
     # extract the position array from universe
