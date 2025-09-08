@@ -66,5 +66,6 @@ def interaction_distribution(u, inter_name, pair_idxs, group_name="", prefix="",
                            vs_fitted)
             return vs_fitted, inter_type
         else:
-            print('Virtual site interaction type requested is not currently implemented. Please reconsider topology.')
-            sys.exit(1)
+            raise NotImplementedError(f'Virtual site interaction type specified ({inter_name} itp type {parameters[0]})'
+                                      f' for interaction group {group_name} is not currently implemented. '
+                                      f'Please reconsider topology.')
