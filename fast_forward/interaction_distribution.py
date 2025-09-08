@@ -64,7 +64,8 @@ def interaction_distribution(u, inter_name, pair_idxs, group_name="", prefix="",
                                                                     inter_type=inter_type,
                                                                     prefix=prefix),
                            vs_fitted)
-            return vs_fitted, inter_type
+            # nb. for gromacs purposes, inter_type as above is == inter_name for virtual sites
+            return vs_fitted, inter_name
         else:
             raise NotImplementedError(f'Virtual site interaction type specified ({inter_name} itp type {parameters[0]})'
                                       f' for interaction group {group_name} is not currently implemented. '
