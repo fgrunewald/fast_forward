@@ -36,24 +36,28 @@ def find_mol_indices(universe, atoms, moltype):
 
 class ITPInteractionMapper:
     """
-    Iterate over interactions in itp file and return dict of
-    grouped indices corresponding to the atoms in universe.
+    Class to extract interaction groups from itp files
+    and map them to indices in an MDAnalysis Universe.
     """
-     # we ensure we either have molecule types, or we promote res info as such
-    res_as_mol(universe)
+    def __init__(self, universe, blocks, molnames):
+        """
+        Parameters
+        ----------
+        universe: mda.Universe
+        blocks: list[vermouth.molecule.Block]
+        molnames: list[str]
+        """
+        self.universe = universe
+        self.blocks = dict(zip(molnames, blocks))
+        # we ensure we either have molecule types, or we promote res info as such
+        res_as_mol(self.universe)
 
-    indices_dict = defaultdict(dict)
-    initial_parameters = defaultdict(dict)
-    block_indices = defaultdict(dict)
-    for inter_type, block_inter in block.interactions.items():
-        for inter in block_inter:
-            atoms = inter.atoms
-            group = inter.meta.get("comment")
-            if group is not None:
-                indices = find_mol_indices(universe, atoms, mol_name)
-                old_indices = indices_dict[inter_type].get(group, [])
-                old_block_indices = block_indices[inter_type].get(group, [])
->>>>>>> main
+    def get_interactions_group(self, molname, itp_mode=False):
+        """
+        Iterate over interactions in itp file and return dict of
+        grouped indices corresponding to the atoms in universe.
+        """
+        block = self.blocks[molname]
 
         indices_dict = defaultdict(dict)
         initial_parameters = defaultdict(dict)
@@ -62,19 +66,16 @@ class ITPInteractionMapper:
             for inter in block.interactions[inter_type]:
                 atoms = inter.atoms
                 if itp_mode == "all":
-                    atomnames=[]
-                    for atom in atoms:
-                        atomnames.append(block.nodes[atom]['atomname'])
+                    atomnames=[block.nodes[atom]['atomname'] for atom in atoms]
                     group = "_".join(atomnames)
                     inter.meta["comment"] = group
                 else:
                     group = inter.meta.get("comment", None)
                 if group:
-                    indices = find_indices(self.universe, atoms, molname)
+                    indices = find_mol_indices(self.universe, atoms, molname)
                     old_indices = indices_dict[inter_type].get(group, [])
                     old_block_indices = block_indices[inter_type].get(group, [])
                     block_indices[inter_type][group] = [atoms] + old_block_indices
-
 
                     indices_dict[inter_type][group] = indices + old_indices
                     initial_parameters[inter_type][group] = inter.parameters
@@ -95,11 +96,7 @@ class ITPInteractionMapper:
             for node2, name2 in list(block.nodes(data='atomname'))[node1+1:]:
                 atoms = np.array([node1, node2])
                 group = f'{name1}_{name2}' # naming convention with node1 < node2
-                indices = find_indices(self.universe,
-                                        atoms,
-                                        self.match_attr,
-                                        self.match_values[molname],
-                                        natoms=len(block.nodes))
+                indices = find_mol_indices(self.universe, atoms, molname)
                 old_indices = indices_dict['distances'].get(group, [])
                 indices_dict['distances'][group] = indices + old_indices
 
