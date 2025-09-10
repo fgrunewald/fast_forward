@@ -1,6 +1,6 @@
 import numpy as np
 from fast_forward.interaction_distribution import INTERACTIONS, interaction_distribution
-from fast_forward.itp_to_ag import find_indices
+from fast_forward.itp_to_ag import find_mol_indices
 from collections import defaultdict
 
 def hellinger(p,q):
@@ -71,11 +71,9 @@ def score_matrix(molname, block, universe, distribution_files, hellinger_weight=
         for node2, name2 in list(block.nodes(data='atomname'))[node1+1:]:
             atoms = np.array([node1, node2])
             group_name = f'{name1}_{name2}' # following the naming convention introduced in ITPInteractionMapper
-            indices = find_indices(universe,
+            indices = find_mol_indices(universe,
                             atoms,
-                            match_attr="moltypes",
-                            match_values=[molname],
-                            natoms=natoms)
+                            molname)
             distr = interaction_distribution(universe, 'distances', indices)
             # calculate simulation distribution
             probs = distr[0].T[1]
