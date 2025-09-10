@@ -36,7 +36,8 @@ def calc_score(ref, test, weights=[0.7, 0.3], bins=INTERACTIONS['distances']['bi
     bin_centers = (bins[:-1] + bins[1:]) / 2
 
     mean_diff = np.average(bin_centers, weights=ref) - np.average(bin_centers, weights=test)
-    mean_diff_norm = np.min([np.abs(mean_diff), 1]) # normalize mean difference by standard deviation of reference distribution, if it is zero, use 1 as maximum penalty
+    mean_diff_norm = mean_diff / (2 * std_dev_hist(ref, bins)) # normalize mean difference by standard deviation of reference distribution
+    mean_diff_norm = np.min([np.abs(mean_diff), 1]) # 1 as maximum penalty
 
     score = hellinger(ref, test) * weights[0] + mean_diff_norm * weights[1] # score is a weighted sum of Hellinger distance and mean difference normalized by standard deviation
     return np.round(score, 2)
@@ -87,7 +88,7 @@ def score_matrix(molname, block, universe, distribution_files, hellinger_weight=
             
             # if the distance is constrained, the mean difference is weighted more
             if {node1, node2} in constraints and not include_constrains:
-                weigths = [0.1,0.9] # can be adjusted in the future
+                weigths = [0.2,0.8] # can be adjusted in the future
             else:
                 weigths = [hellinger_weight, 1-hellinger_weight]
 
