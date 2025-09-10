@@ -83,6 +83,11 @@ def report_constraint_coupling(u, block, estimate_lincs=False):
         return
     A = compute_coupling(u, constraints)
 
+    # check if A contains inf or nan
+    if np.isnan(A).any() or np.isinf(A).any():
+        print('WARNING: unable to calculate constraint coupling matrix, contains NaN or Inf values.')
+        print('     Check the masses of the atoms in the itp.')
+        return
     # eigenvalues
     w, _ = np.linalg.eig(A)
     eig_max = np.abs(w).max() # lambda_max
@@ -101,7 +106,7 @@ def report_constraint_coupling(u, block, estimate_lincs=False):
             ff_citations = read_bib(citation_file)
         buff = '\n'
         buff += f"[ Constraint Coupling Report for {{molname}} ]\n"
-        if lincs_order >= threshold:
+        if eig_max >= threshold:
             buff += "WARNING: High constraint coupling detected, consider changing your bonded network!\n\n"
 
         buff += f"Largest eigenvalue: {{eig_max:.2f}}"
