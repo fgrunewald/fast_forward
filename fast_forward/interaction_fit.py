@@ -343,6 +343,15 @@ class InteractionFitter:
                                                                              meta={"ifndef": "FLEXIBLE",
                                                                                    "comment": group_name,
                                                                                    "fc": sigma}))
+        elif inter_type == 'constraints':
+            parameters = self.fit_parameters['bonds'][group_name]
+            center, sigma = parameters
+
+            for ag in atoms:
+                self.interactions_dict['constraints'].append(Interaction(atoms=list(ag),
+                                                                         parameters=[1, center],
+                                                                         meta={"comment": group_name}))
+
         elif inter_type == 'angles':
             parameters = self.fit_parameters['angles'][group_name]
             center, sigma = parameters
@@ -495,6 +504,7 @@ class InteractionFitter:
 
         """
         func_dict = {'bonds': self._bonds_fitter,
+                     'constraints': self._bonds_fitter,
                      'angles': self._angles_fitter,
                      'dihedrals': self._dihedrals_fitter,
                      'virtual_sites2': self._virtual_sites2_handler,
