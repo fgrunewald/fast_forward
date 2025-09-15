@@ -400,81 +400,63 @@ class InteractionFitter:
 
         elif inter_type == 'virtual_sites2':
             parameters = self.fit_parameters['virtual_sites2'][group_name]['params']
-            self.interactions_dict['virtual_sites2'].append(Interaction(atoms=[atoms[0][0]],
-                                                                        # need + 1 on these atoms because otherwise
-                                                                        # index not converted
-                                                                        parameters=[atoms[0][1]+1,
-                                                                        atoms[0][2]+1,
-                                                                        1,
-                                                                        np.round(parameters[0],
-                                                                        self.precision),
-                                                                        ],
-                                                                        meta={"comment": group_name}
-                                                                        ))
+            for ag in atoms:
+                self.interactions_dict['virtual_sites2'].append(Interaction(atoms=ag,
+                                                                            parameters=[1,
+                                                                                        np.round(parameters[0],
+                                                                                                 self.precision)
+                                                                                        ],
+                                                                            meta={"comment": group_name}
+                                                                            ))
         elif inter_type == 'virtual_sites2fd':
             parameters = self.fit_parameters['virtual_sites2fd'][group_name]['params']
-            self.interactions_dict['virtual_sites2'].append(Interaction(atoms=[atoms[0][0]],
-                                                                        # need + 1 on these atoms because otherwise
-                                                                        # index not converted
-                                                                        parameters=[atoms[0][1]+1,
-                                                                        atoms[0][2]+1,
-                                                                        2,
-                                                                        np.round(parameters[0],
-                                                                        self.precision),
-                                                                        ],
-                                                                        meta={"comment": group_name}
-                                                                        ))
+            for ag in atoms:
+                self.interactions_dict['virtual_sites2'].append(Interaction(atoms=ag,
+                                                                            parameters=[2,
+                                                                                        np.round(parameters[0],
+                                                                                                 self.precision),
+                                                                                        ],
+                                                                            meta={"comment": group_name}
+                                                                            ))
         elif inter_type == 'virtual_sites3':
             parameters = self.fit_parameters['virtual_sites3'][group_name]['params']
-            self.interactions_dict['virtual_sites3'].append(Interaction(atoms=[atoms[0][0]],
-                                                                        # need + 1 on these atoms because otherwise
-                                                                        # index not converted
-                                                                        parameters=[atoms[0][1]+1,
-                                                                        atoms[0][2]+1,
-                                                                        atoms[0][3]+1,
-                                                                        1,
-                                                                        np.round(parameters[0],
-                                                                        self.precision),
-                                                                        np.round(parameters[1],
-                                                                        self.precision),
-                                                                        ],
-                                                                        meta={"comment": group_name}
-                                                                        ))
+            for ag in atoms:
+                self.interactions_dict['virtual_sites3'].append(Interaction(atoms=ag,
+                                                                            parameters=[1,
+                                                                                        np.round(parameters[0],
+                                                                                                 self.precision),
+                                                                                        np.round(parameters[1],
+                                                                                                 self.precision),
+                                                                                        ],
+                                                                            meta={"comment": group_name}
+                                                                            ))
         elif inter_type == 'virtual_sites3fd':
             parameters = self.fit_parameters['virtual_sites3fd'][group_name]['params']
-            self.interactions_dict['virtual_sites3'].append(Interaction(atoms=[atoms[0][0]],
-                                                                        # need + 1 on these atoms because otherwise
-                                                                        # index not converted
-                                                                        parameters=[atoms[0][1]+1,
-                                                                        atoms[0][2]+1,
-                                                                        atoms[0][3]+1,
-                                                                        2,
-                                                                        np.round(parameters[0],
-                                                                        self.precision),
-                                                                        np.round(parameters[1],
-                                                                        self.precision),
-                                                                        ],
-                                                                        meta={"comment": group_name}
-                                                                        ))
+            for ag in atoms:
+                self.interactions_dict['virtual_sites3'].append(Interaction(atoms=ag,
+                                                                            parameters=[2,
+                                                                                        np.round(parameters[0],
+                                                                                                 self.precision),
+                                                                                        np.round(parameters[1],
+                                                                                                 self.precision),
+                                                                                        ],
+                                                                            meta={"comment": group_name}
+                                                                            ))
 
         elif inter_type == 'virtual_sites3out':
             parameters = self.fit_parameters['virtual_sites3out'][group_name]['params']
-            self.interactions_dict['virtual_sites3'].append(Interaction(atoms=[atoms[0][0]],
-                                                                # need + 1 on these atoms because otherwise
-                                                                # index not converted
-                                                                parameters=[atoms[0][1] + 1,
-                                                                            atoms[0][2] + 1,
-                                                                            atoms[0][3] + 1,
-                                                                            4,
-                                                                            np.round(parameters[0],
-                                                                                     self.precision),
-                                                                            np.round(parameters[1],
-                                                                                     self.precision),
-                                                                            np.round(parameters[2],
-                                                                                     self.precision),
-                                                                            ],
-                                                                meta={"comment": group_name}
-                                                                ))
+            for ag in atoms:
+                self.interactions_dict['virtual_sites3'].append(Interaction(atoms=ag,
+                                                                    parameters=[4,
+                                                                                np.round(parameters[0],
+                                                                                         self.precision),
+                                                                                np.round(parameters[1],
+                                                                                         self.precision),
+                                                                                np.round(parameters[2],
+                                                                                         self.precision),
+                                                                                ],
+                                                                    meta={"comment": group_name}
+                                                                    ))
 
         elif inter_type == 'virtual_sitesn':
             pars = [1] + [i+1 for i in atoms[0][1:]]
