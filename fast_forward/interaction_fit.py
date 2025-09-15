@@ -28,7 +28,7 @@ def _is_part_of_dihedral(angle_atoms, dihedrals):
         True if angle is part of a dihedral, False otherwise
     """
     for ag in angle_atoms:
-        if any(np.array_equal(angle_atoms, dih[0:3]) or np.array_equal(angle_atoms, dih[1:4]) for dih in dihedrals):
+        if any(np.array_equal(ag, dih[0:3]) or np.array_equal(ag, dih[1:4]) for dih in dihedrals):
             return True
     return False
 
