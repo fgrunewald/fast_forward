@@ -106,7 +106,6 @@ def __main__():
                     # read in reference distribution
                     try:
                         reference_data = np.loadtxt([i for i in distribution_files if group_name in i and inter_type in i][0])
-                        print(group_name, [i for i in distribution_files if group_name in i and inter_type in i][0])
                     except IndexError:
                         print(f"{group_name} file not found!")
                         continue
