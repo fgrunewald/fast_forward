@@ -11,6 +11,27 @@ import lmfit
 from collections import defaultdict
 from vermouth.molecule import Interaction
 
+def _is_part_of_dihedral(angle_atoms, dihedrals):
+    """
+    Check if an angle is part of a dihedral
+
+    Parameters
+    ----------
+    angle_atoms: list
+        list of atom indices in the angle
+    dihedrals: list
+        list of dihedrals in the system
+
+    Returns
+    -------
+    bool
+        True if angle is part of a dihedral, False otherwise
+    """
+    for ag in angle_atoms:
+        if any(np.array_equal(angle_atoms, dih[0:3]) or np.array_equal(angle_atoms, dih[1:4]) for dih in dihedrals):
+            return True
+    return False
+
 def _gaussian_fitter(x, y, initial_center, initial_sigma, initial_amplitude):
     """
     Fit a Gaussian function to an input distribution
@@ -308,6 +329,9 @@ class InteractionFitter:
     def _virtual_sitesn_handler(self, data, group_name):
         self.fit_parameters['virtual_sitesn'][group_name] = None
 
+    def set_dihedrals(self, interaction_groups):
+        self.dihedrals = np.array([dih for key in interaction_groups['dihedrals'] for dih in interaction_groups['dihedrals'][key]])
+
     def fit_to_gmx(self, inter_type, group_name, atoms, vs_constructors):
 
         if inter_type == 'bonds':
@@ -340,10 +364,13 @@ class InteractionFitter:
 
             # empirically derived. if sigma too big, angles get very unstable.
             sigma = min(sigma, 150)
-
-            # empirically derived. For theta_0 > 160, significant ptl energy for type 10 at equilibrium, so enforce type 1.
-            if float(center) < 160:
-                func_type_out = 10
+            
+            if _is_part_of_dihedral(atoms, self.dihedrals): # only assign type 10 if part of a dihedral and theta_0 < 160
+                if float(center) < 160: # empirically derived. For theta_0 > 160, significant ptl energy for type 10 at equilibrium, so enforce type 1.
+                    func_type_out = 10
+                else:
+                    print(f"WARNING: Angle {group_name} is part of a dihedral with equilibrium angle {center} > 160 degrees. Setting to function type 1. Might cause instabilities.")
+                    func_type_out = 1
             else:
                 func_type_out = 1
 

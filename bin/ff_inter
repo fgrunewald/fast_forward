@@ -112,6 +112,8 @@ def __main__():
                 guess_interactions(block)
             interaction_groups, initial_parameters, block_indices = itp_to_ag(block, molname, u)
 
+            fitter.set_dihedrals(interaction_groups) # save dihedrals in fitter to later check if angles are part of dihedrals
+
             for inter_name in RECOGNISED_INTERACTIONS:
                 for (group_name, pair_idxs), (parameter_type) in zip(interaction_groups[inter_name].items(), initial_parameters[inter_name].values()):
 
