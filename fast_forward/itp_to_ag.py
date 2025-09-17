@@ -69,6 +69,7 @@ def itp_to_ag(block, mol_name, universe):
             atoms = inter.atoms
             group = inter.meta.get("comment", None)
             if group:
+                group = group.replace(" ", "_")
                 indices = find_indices(universe,
                                        atoms,
                                        match_attr,
