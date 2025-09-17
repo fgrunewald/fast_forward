@@ -10,7 +10,7 @@ def std_dev_hist(hist, bins):
     bin_centers = (bins[:-1] + bins[1:]) / 2
     return np.sqrt(np.cov(bin_centers, aweights=hist, bias=True))
 
-def calc_score(ref, test, weights=[0.7, 0.3], bins=INTERACTIONS['distances']['bins']):
+def calc_score(ref, test, weights=[0.7, 0.3], interaction_type='distances'):
     '''
     Compute the score between two distributions.
     The score is a weighted sum of the Hellinger distance and the difference in means of the distributions
@@ -30,6 +30,7 @@ def calc_score(ref, test, weights=[0.7, 0.3], bins=INTERACTIONS['distances']['bi
     float
         Score between the two distributions, between [0, 1].
     '''
+    bins=INTERACTIONS[interaction_type]['bins']
     ref = ref / np.sum(ref) if np.sum(ref) > 0 else ref # normalize distributions
     test = test / np.sum(test) if np.sum(test) > 0 else test
 
@@ -91,7 +92,7 @@ def score_matrix(molname, block, universe, distribution_files, hellinger_weight=
                 weigths = [hellinger_weight, 1-hellinger_weight]
 
             # calculate score and populate matrix
-            score = calc_score(probs, reference_data.T[1], weigths)
+            score = calc_score(probs, reference_data.T[1], weigths, interaction_type='distances')
             score_matrix[node1, node2] = float(score)
             score_matrix[node2, node1] = float(score)
             plot_data['distances'][group_name] = {"x": reference_data.T[0],
