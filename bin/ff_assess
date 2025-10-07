@@ -161,7 +161,7 @@ def __main__():
             interaction_groups, _, _ = interaction_mapper.get_interactions_group(molname)
             for inter_type in ['bonds', 'angles', 'dihedrals']:
                 for group_name, pair_idxs in interaction_groups[inter_type].items():
-                    distr = interaction_distribution(u, inter_type, pair_idxs)
+                    distr, _ = interaction_distribution(u, inter_type, pair_idxs)
                     # calculate simulation distribution
                     probs = distr[0].T[1]
                     # read in reference distribution

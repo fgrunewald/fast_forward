@@ -37,6 +37,56 @@ def _fast_dih(arr1, arr2, arr3, arr4):
         angle[fdx] = dihedral_angle(diff1, diff2, diff3)
     return angle
 
+def _vs2_func(pars, x, positions):
+    vals = pars.valuesdict()
+    a = vals['a']
+
+    i, j = positions
+    predicted_pos = ((1-a) * i) + (a * j)
+    return x - predicted_pos
+
+def _vs2(arr1, arr2, arr3):
+    fit_params = create_params(a=1)
+    pos_list = [arr2 / 10, arr3 / 10]  # convert to nm
+    fit = minimize(_vs2_func, fit_params, args=(arr1 / 10, pos_list,))
+    ab = np.array([fit.params["a"].value])
+    return ab
+
+def _vs2fd_func(pars, x, positions):
+    vals = pars.valuesdict()
+    a = vals['a']
+
+    i, j = positions
+
+    r_ij = j - i
+    r_ij_norm = (r_ij.T / np.linalg.norm(r_ij, axis=1)).T
+    predicted_pos = i + (a * r_ij_norm)
+
+    return x - predicted_pos
+
+def _vs2fd(arr1, arr2, arr3):
+    fit_params = create_params(a=1)
+    pos_list = [arr2 / 10, arr3 / 10]  # convert to nm
+    fit = minimize(_vs2fd_func, fit_params, args=(arr1 / 10, pos_list,))
+    ab = np.array([fit.params["a"].value])
+    return ab
+
+
+def _vs3_func(pars, x, positions):
+    vals = pars.valuesdict()
+    a = vals['a']
+    b = vals['b']
+
+    i, j, k = positions
+    predicted_pos = ((1-a-b) * i) + (a * j) + (b * k)
+    return x - predicted_pos
+
+def _vs3(arr1, arr2, arr3, arr4):
+    fit_params = create_params(a=1, b=1)
+    pos_list = [arr2 / 10, arr3 / 10, arr4 / 10]  # convert to nm
+    fit = minimize(_vs3_func, fit_params, args=(arr1 / 10, pos_list,))
+    ab = np.array([fit.params["a"].value, fit.params["b"].value])
+    return ab
 
 def _vs3fd_func(pars, x, positions):
     vals = pars.valuesdict()
@@ -95,6 +145,9 @@ NORMAL_FUNCS = {"angles": _fast_angle,
                 "bonds": _fast_pair_dists,
                 "constraints": _fast_pair_dists,
                 "dihedrals": _fast_dih,
+                "virtual_sites2": _vs2,
+                "virtual_sites2fd": _vs2fd,
+                "virtual_sites3": _vs3,
                 "virtual_sites3fd": _vs3fd,
                 "virtual_sites3out": _vs3out,
                 "virtual_sitesn": _virtual_sitesn,
