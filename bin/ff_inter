@@ -122,7 +122,7 @@ def __main__():
 
 
                     # fit the interactions
-                    fitter.fit_interaction(distr, block_indices[inter_type][group_name], group_name, inter_type,
+                    fitter.fit_interaction(distr, block_indices[inter_name][group_name], group_name, inter_type,
                                            vs_constructors)
 
                     if 'virtual' in inter_name:
