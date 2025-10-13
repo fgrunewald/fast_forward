@@ -4,3 +4,18 @@
   year={2025},
   doi={https://zenodo.org/badge/latestdoi/327071500}
 }
+@article{cholesterol_constraints,
+  title={Optimal Bond Constraint Topology for Molecular Dynamics Simulations of Cholesterol},
+  author={Fabian, Balazs and Thallmair, Sebastian and Hummer, Gerhard},
+  year={2023},
+  month=mar,
+  journal={Journal of Chemical Theory and Computation},
+  volume={19},
+  number={5},
+  pages={1592--1601},
+  publisher={American Chemical Society},
+  issn={1549-9618},
+  doi={10.1021/acs.jctc.2c01032},
+  urldate={2025-05-15},
+  abstract={We recently observed artificial temperature gradients in molecular dynamics (MD) simulations of phase-separating ternary lipid mixtures using the Martini 2 force field. We traced this artifact to insufficiently converged bond length constraints with typical time steps and default settings for the linear constraint solver (LINCS). Here, we systematically optimize the constraint scaffold of cholesterol. With massive virtual sites in an equimomental arrangement, we accelerate bond constraint convergence while preserving the original cholesterol force field and dynamics. The optimized model does not induce nonphysical temperature gradients even at relaxed LINCS settings and is at least as fast as the original model at the strict LINCS settings required for proper thermal sampling. We provide a python script to diagnose possible problems with constraint convergence for other molecules and force fields. Equimomental constraint topology optimization can also be used to boost constraint convergence in atomistic MD simulations of molecular systems.},
+}

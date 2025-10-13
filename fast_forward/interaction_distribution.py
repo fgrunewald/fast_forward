@@ -10,6 +10,8 @@ INTERACTIONS = {'bonds': {'bins': np.arange(0, 7, 0.01)
                            },
                 'dihedrals': {'bins': np.arange(-180, 181)
                               },
+                'distances': {'bins': np.arange(0, 30, 0.05) # might need adjustment to allow for larger molecules
+                              },
                 'virtual_sitesn': {'interaction_types': {'1': 'virtual_sitesn'},
                                    'array_shape': {'virtual_sitesn': 1}
                                    },
