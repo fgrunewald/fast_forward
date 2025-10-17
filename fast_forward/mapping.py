@@ -120,18 +120,18 @@ def forward_map_positions(mapped_atoms, bead_idxs, weights, positions, n_frames,
             # we need to first average the non-treated atoms
             # and then take the average of the these atoms with
             # the treated atoms
-            pre_count = 0
-            treat_count = 0
+            pre_count = 0.0
+            treat_count = 0.0
             for kdx in prange(len(atom_idxs)):
                 weight = atom_weights[kdx]
                 atom_idx = atom_idxs[kdx]
                 vector = positions[fdx, atom_idx, :]
                 if atom_idx not in treated_atoms:
                     pre_pos = pre_pos + vector * weight
-                    pre_count += 1
+                    pre_count += 1.0*weight
                 else:
                     treat_pos = treat_pos + vector * weight
-                    treat_count += 1
+                    treat_count += 1.0*weight
 
             if pre_count != 0:
                 pre_pos = pre_pos / pre_count
