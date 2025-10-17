@@ -27,7 +27,7 @@ def load_cgsmiles_library(filepath):
 def find_one_graph_match(graph1, graph2):
     """
     Returns one ismags match when graphs are isomorphic
-    otherwise None.
+    otherwise [].
     """
 
     def node_match(n1, n2):
@@ -113,12 +113,13 @@ def cgsmiles_to_mapping(univ, cgsmiles_strs, mol_names, mol_matching=True):
         for cgs_str in possible_cgs:
             # read the cgsmiles string
             resolver = MoleculeResolver.from_string(cgs_str, last_all_atom=True)
-            cg, aa = resolver.resolve()
+            cg, aa = resolver.resolve_all()
             _match = find_one_graph_match(aa, mol_graph)
             if _match:
                 break
         else:
-            raise SyntaxError("No matching cgsmiles string found.")
+            raise SyntaxError('No matching cgsmiles string found for '
+                              f'molecule {mol_name}.')
 
         # assgin resids to the beads
         mappings = get_mappings(cg, univ, _match, mappings)

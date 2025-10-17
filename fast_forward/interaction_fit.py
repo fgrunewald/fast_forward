@@ -299,6 +299,15 @@ class InteractionFitter:
                                                              'Distribution': y,
                                                              'Fitted': fitted_improper_plot}
 
+    def _virtual_sites2_handler(self, data, group_name):
+        self.fit_parameters['virtual_sites2'][group_name] = {'params': [data[0][0]]}
+
+    def _virtual_sites2fd_handler(self, data, group_name):
+        self.fit_parameters['virtual_sites2fd'][group_name] = {'params': [data[0][0]]}
+
+    def _virtual_sites3_handler(self, data, group_name):
+        self.fit_parameters['virtual_sites3'][group_name] = {'params': [data[0][0], data[0][1]]}
+
     def _virtual_sites3out_handler(self, data, group_name):
         self.fit_parameters['virtual_sites3out'][group_name] = {'params': [data[0][0], data[0][1], data[0][2]]}
 
@@ -334,6 +343,15 @@ class InteractionFitter:
                                                                              meta={"ifndef": "FLEXIBLE",
                                                                                    "comment": group_name,
                                                                                    "fc": sigma}))
+        elif inter_type == 'constraints':
+            parameters = self.fit_parameters['bonds'][group_name]
+            center, sigma = parameters
+
+            for ag in atoms:
+                self.interactions_dict['constraints'].append(Interaction(atoms=list(ag),
+                                                                         parameters=[1, center],
+                                                                         meta={"comment": group_name}))
+
         elif inter_type == 'angles':
             parameters = self.fit_parameters['angles'][group_name]
             center, sigma = parameters
@@ -380,41 +398,65 @@ class InteractionFitter:
                                                                                meta={"comment": group_name,
                                                                                      "group": group_name}))
 
+        elif inter_type == 'virtual_sites2':
+            parameters = self.fit_parameters['virtual_sites2'][group_name]['params']
+            for ag in atoms:
+                self.interactions_dict['virtual_sites2'].append(Interaction(atoms=ag,
+                                                                            parameters=[1,
+                                                                                        np.round(parameters[0],
+                                                                                                 self.precision)
+                                                                                        ],
+                                                                            meta={"comment": group_name}
+                                                                            ))
+        elif inter_type == 'virtual_sites2fd':
+            parameters = self.fit_parameters['virtual_sites2fd'][group_name]['params']
+            for ag in atoms:
+                self.interactions_dict['virtual_sites2'].append(Interaction(atoms=ag,
+                                                                            parameters=[2,
+                                                                                        np.round(parameters[0],
+                                                                                                 self.precision),
+                                                                                        ],
+                                                                            meta={"comment": group_name}
+                                                                            ))
+        elif inter_type == 'virtual_sites3':
+            parameters = self.fit_parameters['virtual_sites3'][group_name]['params']
+            for ag in atoms:
+                self.interactions_dict['virtual_sites3'].append(Interaction(atoms=ag,
+                                                                            parameters=[1,
+                                                                                        np.round(parameters[0],
+                                                                                                 self.precision),
+                                                                                        np.round(parameters[1],
+                                                                                                 self.precision),
+                                                                                        ],
+                                                                            meta={"comment": group_name}
+                                                                            ))
         elif inter_type == 'virtual_sites3fd':
             parameters = self.fit_parameters['virtual_sites3fd'][group_name]['params']
-            self.interactions_dict['virtual_sites3'].append(Interaction(atoms=[atoms[0][0]],
-                                                                        # need + 1 on these atoms because otherwise
-                                                                        # index not converted
-                                                                        parameters=[atoms[0][1]+1,
-                                                                        atoms[0][2]+1,
-                                                                        atoms[0][3]+1,
-                                                                        2,
-                                                                        np.round(parameters[0],
-                                                                        self.precision),
-                                                                        np.round(parameters[1],
-                                                                        self.precision),
-                                                                        ],
-                                                                        meta={"comment": group_name}
-                                                                        ))
+            for ag in atoms:
+                self.interactions_dict['virtual_sites3'].append(Interaction(atoms=ag,
+                                                                            parameters=[2,
+                                                                                        np.round(parameters[0],
+                                                                                                 self.precision),
+                                                                                        np.round(parameters[1],
+                                                                                                 self.precision),
+                                                                                        ],
+                                                                            meta={"comment": group_name}
+                                                                            ))
 
         elif inter_type == 'virtual_sites3out':
             parameters = self.fit_parameters['virtual_sites3out'][group_name]['params']
-            self.interactions_dict['virtual_sites3'].append(Interaction(atoms=[atoms[0][0]],
-                                                                # need + 1 on these atoms because otherwise
-                                                                # index not converted
-                                                                parameters=[atoms[0][1] + 1,
-                                                                            atoms[0][2] + 1,
-                                                                            atoms[0][3] + 1,
-                                                                            4,
-                                                                            np.round(parameters[0],
-                                                                                     self.precision),
-                                                                            np.round(parameters[1],
-                                                                                     self.precision),
-                                                                            np.round(parameters[2],
-                                                                                     self.precision),
-                                                                            ],
-                                                                meta={"comment": group_name}
-                                                                ))
+            for ag in atoms:
+                self.interactions_dict['virtual_sites3'].append(Interaction(atoms=ag,
+                                                                    parameters=[4,
+                                                                                np.round(parameters[0],
+                                                                                         self.precision),
+                                                                                np.round(parameters[1],
+                                                                                         self.precision),
+                                                                                np.round(parameters[2],
+                                                                                         self.precision),
+                                                                                ],
+                                                                    meta={"comment": group_name}
+                                                                    ))
 
         elif inter_type == 'virtual_sitesn':
             pars = [1] + [i+1 for i in atoms[0][1:]]
@@ -444,8 +486,12 @@ class InteractionFitter:
 
         """
         func_dict = {'bonds': self._bonds_fitter,
+                     'constraints': self._bonds_fitter,
                      'angles': self._angles_fitter,
                      'dihedrals': self._dihedrals_fitter,
+                     'virtual_sites2': self._virtual_sites2_handler,
+                     'virtual_sites2fd': self._virtual_sites2fd_handler,
+                     'virtual_sites3': self._virtual_sites3_handler,
                      'virtual_sites3fd': self._virtual_sites3fd_handler,
                      'virtual_sites3out': self._virtual_sites3out_handler,
                      'virtual_sitesn': self._virtual_sitesn_handler
