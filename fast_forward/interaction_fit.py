@@ -27,9 +27,15 @@ def _is_part_of_dihedral(angle_atoms, dihedrals):
     bool
         True if angle is part of a dihedral, False otherwise
     """
-    for ag in angle_atoms:
-        if any(np.array_equal(ag, dih[0:3]) or np.array_equal(ag, dih[1:4]) for dih in dihedrals):
-            return True
+    for dih in dihedrals:
+        match = (
+            np.array_equal(angle_atoms, dih[0:3]) or
+            np.array_equal(angle_atoms, dih[1:4]) or
+            np.array_equal(angle_atoms[::-1], dih[0:3]) or
+            np.array_equal(angle_atoms[::-1], dih[1:4])
+        )
+        if match:
+            return True 
     return False
 
 def _gaussian_fitter(x, y, initial_center, initial_sigma, initial_amplitude):
@@ -365,7 +371,7 @@ class InteractionFitter:
             # empirically derived. if sigma too big, angles get very unstable.
             sigma = min(sigma, 150)
             
-            if _is_part_of_dihedral(atoms, self.dihedrals): # only assign type 10 if part of a dihedral and theta_0 < 160
+            if _is_part_of_dihedral(atoms[0], self.dihedrals): # only assign type 10 if part of a dihedral and theta_0 < 160
                 if float(center) < 160: # empirically derived. For theta_0 > 160, significant ptl energy for type 10 at equilibrium, so enforce type 1.
                     func_type_out = 10
                 else:
