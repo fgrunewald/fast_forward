@@ -127,10 +127,9 @@ def guess_interactions(block):
     block: :class:`vermouth.molecule.Block`
     """
 
-    # clear any existing angles and dihedrals
-    for key in ['angles', 'dihedrals']:
-        if key in block.interactions:
-            block.interactions[key] = []
+    # clear any existing angles and dihedrals to prevent duplicates
+    del block.interactions['angles']
+    del block.interactions['dihedrals']
 
     block.make_edges_from_interactions()
 
