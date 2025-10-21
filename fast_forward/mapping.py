@@ -21,7 +21,11 @@ def _selector(atomgroup, indices, names):
     atoms = atomgroup.select_atoms("name " + names_string)
     return atoms
 
-def create_new_universe(universe, mapped_trajectory, mappings):
+def create_new_universe(universe,
+                        mapped_trajectory,
+                        mappings,
+                        n_residues=None,
+                        res_iter=None):
     """
     Create a new universe according to the definitions in mappings
     the old universe, and the mapped trajectory.
@@ -47,7 +51,9 @@ def create_new_universe(universe, mapped_trajectory, mappings):
 
     # create the universe to be returend
     # initalize some attributes
-    n_residues = universe.n_residues
+    if n_residues is None:
+        n_residues = universe.n_residues
+
     n_atoms = mapped_trajectory.shape[1]
     res_seg = np.array([1] * n_residues)
     # to read out these we have to iterate over universe again
@@ -55,7 +61,11 @@ def create_new_universe(universe, mapped_trajectory, mappings):
     atomnames = []
     resids = []
     resnames = []
-    for idx, residue in enumerate(universe.res_iter()):
+    # either we loop over pre-defined residues or the universe ones
+    if res_iter is None:
+        res_iter = universe
+    for idx, residue in enumerate(res_iter.res_iter()):
+        print(idx, residue.resname, residue.resid)
         for bead in mappings[residue.resname].beads:
             atomnames.append(bead)
             atom_resindex.append(idx)
