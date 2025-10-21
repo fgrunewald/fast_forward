@@ -335,6 +335,7 @@ class InteractionFitter:
     def _virtual_sitesn_handler(self, data, group_name):
         self.fit_parameters['virtual_sitesn'][group_name] = None
 
+    @property
     def set_dihedrals(self, interaction_groups):
         self.dihedrals = np.array([dih for key in interaction_groups['dihedrals'] for dih in interaction_groups['dihedrals'][key]])
 
@@ -375,8 +376,8 @@ class InteractionFitter:
                 if float(center) < 160: # empirically derived. For theta_0 > 160, significant ptl energy for type 10 at equilibrium, so enforce type 1.
                     func_type_out = 10
                 else:
-                    print(f"WARNING: Angle {group_name} is part of a dihedral with equilibrium angle {center} > 160 degrees. Setting to function type 1. Might cause instabilities.")
-                    func_type_out = 1
+                    print(f"WARNING: Angle {group_name} is part of a dihedral with equilibrium angle {center:.1f}°. For theta_0 > 160°, the system may have high potential even energy at equilibrium. This might cause instabilities.")
+                    func_type_out = 10
             else:
                 func_type_out = 1
 
