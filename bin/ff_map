@@ -187,8 +187,8 @@ def main():
         with mda.Writer(outpath.stem+'.gro',
                         multiframe=False,
                         n_atoms=len(cg_universe.atoms)) as first_frame:
-            first_frame.write(cg_beads)
-    else:
+                        first_frame.box = init_universe.dimensions if isinstance(init_universe.dimensions, np.ndarray) else np.array([7.0, 7.0, 7.0])
+                        first_frame.write(cg_beads) 
         cg_universe.atoms.positions = cg_universe.trajectory.coordinate_array[0]
         cg_beads = cg_universe.atoms
         cg_universe.atoms.dimensions = init_universe.atoms.dimensions
