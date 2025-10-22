@@ -122,8 +122,7 @@ def __main__():
                 guess_interactions(block)
             interaction_groups, initial_parameters, block_indices = interaction_mapper.get_interactions_group(molname, args.itp_mode)
 
-
-            fitter.set_dihedrals(interaction_groups) # save dihedrals in fitter to later check if angles are part of dihedrals
+            fitter.dihedrals = interaction_groups # save dihedrals in fitter to later check if angles are part of dihedrals
 
             if not interaction_groups:
                 print(f"WARNING: No interactions found in block {molname}. None will be fitted for this molecule.")

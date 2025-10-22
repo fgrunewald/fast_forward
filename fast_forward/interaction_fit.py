@@ -345,8 +345,12 @@ class InteractionFitter:
         self.fit_parameters['virtual_sitesn'][group_name] = None
 
     @property
-    def set_dihedrals(self, interaction_groups):
-        self.dihedrals = np.array([dih for key in interaction_groups['dihedrals'] for dih in interaction_groups['dihedrals'][key]])
+    def dihedrals(self):
+        return getattr(self, "__dihedrals", np.array([]))
+
+    @dihedrals.setter
+    def dihedrals(self, interaction_groups):
+        self.__dihedrals = np.array([dih for key in interaction_groups['dihedrals'] for dih in interaction_groups['dihedrals'][key]])
 
     def fit_to_gmx(self, inter_type, group_name, atoms, vs_constructors):
 
