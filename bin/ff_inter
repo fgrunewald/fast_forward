@@ -118,7 +118,7 @@ def __main__():
             # check for virtualsites
             vs_constructors = virtualsite_atoms(block)
             # calculate distributions for interaction
-            if not args.itp_mode:
+            if args.itp_mode == 'all':
                 guess_interactions(block)
             interaction_groups, initial_parameters, block_indices = interaction_mapper.get_interactions_group(molname, args.itp_mode)
 

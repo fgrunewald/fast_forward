@@ -189,11 +189,6 @@ def main():
                         n_atoms=len(cg_universe.atoms)) as first_frame:
                         first_frame.box = init_universe.dimensions if isinstance(init_universe.dimensions, np.ndarray) else np.array([7.0, 7.0, 7.0])
                         first_frame.write(cg_beads) 
-        cg_universe.atoms.positions = cg_universe.trajectory.coordinate_array[0]
-        cg_beads = cg_universe.atoms
-        cg_universe.atoms.dimensions = init_universe.atoms.dimensions
-        with mda.Writer(args.outpath, n_atoms=len(cg_universe.atoms)) as mapped:
-            mapped.write(cg_beads)
 
 if __name__ == '__main__':
     main()
