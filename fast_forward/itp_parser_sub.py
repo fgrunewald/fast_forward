@@ -128,8 +128,10 @@ def guess_interactions(block):
     """
 
     # clear any existing angles and dihedrals to prevent duplicates
-    del block.interactions['angles']
-    del block.interactions['dihedrals']
+    if block.interactions.get('angles'):
+        del block.interactions['angles']
+    if block.interactions.get('dihedrals'):
+        del block.interactions['dihedrals']
 
     block.make_edges_from_interactions()
 
@@ -147,4 +149,3 @@ def guess_interactions(block):
             comment = '_'.join([block.nodes[atom]['atomname'] for atom in i])
             block.add_interaction('dihedrals', atoms=i,
                                   parameters=['1', '10', '1', '1'], meta={'version': 0, 'comment': comment})
-
