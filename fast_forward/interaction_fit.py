@@ -34,9 +34,7 @@ def _is_part_of_dihedral(angle_atoms, dihedrals):
             np.array_equal(angle_atoms[::-1], dih[0:3]) or
             np.array_equal(angle_atoms[::-1], dih[1:4])
         )
-        if match:
-            return True 
-    return False
+    return match
 
 def _gaussian_fitter(x, y, initial_center, initial_sigma, initial_amplitude):
     """
@@ -346,11 +344,11 @@ class InteractionFitter:
 
     @property
     def dihedrals(self):
-        return getattr(self, "__dihedrals", np.array([]))
+        return getattr(self, "__dihedrals", [])
 
     @dihedrals.setter
     def dihedrals(self, interaction_groups):
-        self.__dihedrals = np.array([dih for key in interaction_groups['dihedrals'] for dih in interaction_groups['dihedrals'][key]])
+        self.__dihedrals =[dih for key in interaction_groups['dihedrals'] for dih in interaction_groups['dihedrals'][key]]
 
     def fit_to_gmx(self, inter_type, group_name, atoms, vs_constructors):
 
