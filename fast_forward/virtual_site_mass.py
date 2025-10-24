@@ -31,6 +31,7 @@ def mass_redistribution(block, pair_idx):
 
                 if not isclose(current_mass, expected_new_mass):
                     block.nodes[node]["mass"] = expected_new_mass
+                    block.nodes[node]["charge"] = block.nodes[node].get("charge", "0.0")
                 else:
                     reassign.append(True)
 
