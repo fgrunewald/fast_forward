@@ -147,13 +147,16 @@ def make_distances_distribution_plot(plot_data, atom_names, save_plot_data=False
     if not axarr:
         fig ,axarr = plt.subplots(natoms-1,natoms-1,figsize=(natoms*2,natoms),gridspec_kw={'wspace':0.05,'hspace':0.4})
 
+    parsed_names = [name.split("_") for name in atom_names]
     for i in range(natoms-1):
+        resid1, name1 = parsed_names[i]
         for j in range(1,natoms):
+            resid2, name2 = parsed_names[j]
             ax = axarr[i, j-1]
             if i < j: # plot only upper triangle of the matrix
-                atoms = f'{atom_names[i]}_{atom_names[j]}'
-                if atoms in plot_data['distances']:
-                    _plotter_distance_distribution(plot_data['distances'][atoms], ax)
+                atoms_key = f'{resid1}_{resid2}_{name1}_{name2}'
+                if atoms_key in plot_data['distances']:
+                    _plotter_distance_distribution(plot_data['distances'][atoms_key], ax)
             else:
                 fig.delaxes(ax) # remove lower triangle of the matrix
     

@@ -197,7 +197,8 @@ def __main__():
                                    args.hellinger_weight,
                                    args.include_constraints)
 
-            atom_names = [name for _, name in block.nodes(data='atomname')]
+            atom_names = [f'{resid}_{name}' for (_, name), (_, resid) in zip(block.nodes(data='atomname'), block.nodes(data='resid'))]
+
             if args.plots:
                 make_matrix_plot(score_m, atom_names, name=f'{args.plots}/score_matrix_{molname}')
                 make_distances_distribution_plot(plot_data, atom_names, name=f'{args.plots}/distance_distributions_{molname}')

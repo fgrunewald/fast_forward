@@ -70,8 +70,10 @@ def score_matrix(molname, block, universe, distribution_files, hellinger_weight=
 
     for node1, name1 in block.nodes(data='atomname'):
         for node2, name2 in list(block.nodes(data='atomname'))[node1+1:]:
+            resid1 = block.nodes[node1]['resid']
+            resid2 = block.nodes[node2]['resid']
             atoms = np.array([node1, node2])
-            group_name = f'{name1}_{name2}' # following the naming convention introduced in ITPInteractionMapper
+            group_name = f'{resid1}_{resid2}_{name1}_{name2}' # following the naming convention introduced in ITPInteractionMapper
             indices = find_mol_indices(universe,
                             atoms,
                             molname)
@@ -92,7 +94,7 @@ def score_matrix(molname, block, universe, distribution_files, hellinger_weight=
                 weigths = [hellinger_weight, 1-hellinger_weight]
 
             # calculate score and populate matrix
-            score = calc_score(probs, reference_data.T[1], weigths, interaction_type='distances')
+            score = calc_score(reference_data.T[1], probs, weigths, interaction_type='distances')
             score_matrix[node1, node2] = float(score)
             score_matrix[node2, node1] = float(score)
             plot_data['distances'][group_name] = {"x": reference_data.T[0],
