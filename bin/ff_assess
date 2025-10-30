@@ -49,7 +49,6 @@ def report_interactions(h_score_dict, score_dict, exclude_outliers=False):
     else:
         buff += '\n'
 
-    h_scores = []
     overall_scores = []
     for interaction_type in h_score_dict.keys():
         buff += f" {interaction_type} \n"
@@ -59,7 +58,6 @@ def report_interactions(h_score_dict, score_dict, exclude_outliers=False):
                 buff += f"\t{atom_group:20s}: {h_score:.2f} ({score:.2f})(excluded)\n"
             else:
                 buff += f"\t{atom_group:20s}: {h_score:.2f} ({score:.2f})\n"
-                h_scores.append(h_score)
                 overall_scores.append(score)
         buff += '\n'
 
