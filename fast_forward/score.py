@@ -1,4 +1,5 @@
 import numpy as np
+import re
 from fast_forward.interaction_distribution import INTERACTIONS, interaction_distribution
 from fast_forward.itp_to_ag import find_mol_indices
 from collections import defaultdict
@@ -80,11 +81,13 @@ def score_matrix(molname, block, universe, distribution_files, hellinger_weight=
             distr = interaction_distribution(universe, 'distances', indices)
             # calculate simulation distribution
             probs = distr[0].T[1]
-            # read in reference distribution
+            reference_pattern = re.compile(rf'.*(?<!\d){re.escape(group_name)}_distances_distr\.dat$')
             try:
-                reference_data = np.loadtxt([i for i in distribution_files if group_name in i and 'distances' in i][0])
+                matching_files = [f for f in distribution_files if reference_pattern.search(f)]
+                if not matching_files:
+                    raise IndexError
             except IndexError:
-                print(f"{group_name} file not found!")
+                print(f"{group_name} file not found! If your prefix ends with numbers, this could be the reason.")
                 continue
             
             # if the distance is constrained, the mean difference is weighted more

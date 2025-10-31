@@ -178,7 +178,10 @@ def __main__():
                     h_score = hellinger(probs/probs.sum(), reference_data.T[1] / reference_data.T[1].sum())
                     h_score_dict[inter_type][group_name] = h_score
 
-                    score = calc_score(reference_data.T[1]/ reference_data.T[1].sum(), probs/probs.sum(), [args.hellinger_weight, 1-args.hellinger_weight], inter_type)
+                    score = calc_score(
+                        reference_data.T[1]/ reference_data.T[1].sum(), probs/probs.sum(), 
+                        [args.hellinger_weight, 1-args.hellinger_weight], inter_type
+                        )
                     score_dict[inter_type][group_name] = score
 
                     plot_data[inter_type][group_name] = {"x": reference_data.T[0],
@@ -188,6 +191,7 @@ def __main__():
             make_distribution_plot(plot_data, args.plot_data, name=f'{args.plots}/distribution_comparison')
         report_interactions(h_score_dict, score_dict, args.exclude_outliers)
         
+        del(plot_data)
         # evaluation of distances
         for molname, block in ff.blocks.items():
             score_m, plot_data = score_matrix(molname, 
@@ -196,12 +200,14 @@ def __main__():
                                    distribution_files,
                                    args.hellinger_weight,
                                    args.include_constraints)
-
+            
             atom_names = [f'{resid}_{name}' for (_, name), (_, resid) in zip(block.nodes(data='atomname'), block.nodes(data='resid'))]
 
             if args.plots:
                 make_matrix_plot(score_m, atom_names, name=f'{args.plots}/score_matrix_{molname}')
-                make_distances_distribution_plot(plot_data, atom_names, name=f'{args.plots}/distance_distributions_{molname}')
-            report_distances(score_m, molname, atom_names)
+                make_distances_distribution_plot(
+                    plot_data, atom_names, name=f'{args.plots}/distance_distributions_{molname}',save_plot_data=True
+                )
 
+            report_distances(score_m, molname, atom_names)
 __main__()
