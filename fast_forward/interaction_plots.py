@@ -41,8 +41,12 @@ def _plotter_distance_distribution(data, ax):
                 data[key],
                 c = cols[idx],
                 label=key)
-        x_min = np.min([x_min, data['x'][np.min(np.nonzero(data[key]))]]) # find the minimum x value in the data
-        x_max = np.max([x_max, data['x'][np.max(np.nonzero(data[key]))]]) # find the maximum x value in the data
+        threshold = np.max(data[key]) * 0.01  # e.g., 1% of the peak
+        significant_indices = np.where(data[key] > threshold)[0]
+
+        if significant_indices.size > 0: # Only update if we found significant data
+            x_min = np.min([x_min, data['x'][np.min(significant_indices)]])
+            x_max = np.max([x_max, data['x'][np.max(significant_indices)]])
     ax.yaxis.set_ticks([])
     ax.set_xlim(x_min - x_pad, x_max + x_pad)
 
