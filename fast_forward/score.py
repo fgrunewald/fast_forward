@@ -86,6 +86,9 @@ def score_matrix(molname, block, universe, distribution_files, hellinger_weight=
                 matching_files = [f for f in distribution_files if reference_pattern.search(f)]
                 if not matching_files:
                     raise IndexError
+                if len(matching_files) > 1:
+                    print(f"Multiple files found for {group_name}, using the first one.")
+                reference_data = np.loadtxt(matching_files[0])
             except IndexError:
                 print(f"{group_name} file not found! If your prefix ends with numbers, this could be the reason.")
                 continue
