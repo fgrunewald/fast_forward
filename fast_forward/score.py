@@ -1,4 +1,5 @@
 import numpy as np
+import re
 from fast_forward.interaction_distribution import INTERACTIONS, interaction_distribution
 from fast_forward.itp_to_ag import find_mol_indices
 from collections import defaultdict
@@ -70,19 +71,26 @@ def score_matrix(molname, block, universe, distribution_files, hellinger_weight=
 
     for node1, name1 in block.nodes(data='atomname'):
         for node2, name2 in list(block.nodes(data='atomname'))[node1+1:]:
+            resid1 = block.nodes[node1]['resid']
+            resid2 = block.nodes[node2]['resid']
             atoms = np.array([node1, node2])
-            group_name = f'{name1}_{name2}' # following the naming convention introduced in ITPInteractionMapper
+            group_name = f'{resid1}_{resid2}_{name1}_{name2}' # following the naming convention introduced in ITPInteractionMapper
             indices = find_mol_indices(universe,
                             atoms,
                             molname)
             distr = interaction_distribution(universe, 'distances', indices)
             # calculate simulation distribution
             probs = distr[0].T[1]
-            # read in reference distribution
+            reference_pattern = re.compile(rf'.*(?<!\d){re.escape(group_name)}_distances_distr\.dat$')
             try:
-                reference_data = np.loadtxt([i for i in distribution_files if group_name in i and 'distances' in i][0])
+                matching_files = [f for f in distribution_files if reference_pattern.search(f)]
+                if not matching_files:
+                    raise IndexError
+                if len(matching_files) > 1:
+                    print(f"Multiple files found for {group_name}, using the first one.")
+                reference_data = np.loadtxt(matching_files[0])
             except IndexError:
-                print(f"{group_name} file not found!")
+                print(f"{group_name} file not found! If your prefix ends with numbers, this could be the reason.")
                 continue
             
             # if the distance is constrained, the mean difference is weighted more
@@ -92,7 +100,7 @@ def score_matrix(molname, block, universe, distribution_files, hellinger_weight=
                 weigths = [hellinger_weight, 1-hellinger_weight]
 
             # calculate score and populate matrix
-            score = calc_score(probs, reference_data.T[1], weigths, interaction_type='distances')
+            score = calc_score(reference_data.T[1], probs, weigths, interaction_type='distances')
             score_matrix[node1, node2] = float(score)
             score_matrix[node2, node1] = float(score)
             plot_data['distances'][group_name] = {"x": reference_data.T[0],
