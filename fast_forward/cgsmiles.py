@@ -19,6 +19,18 @@ from .map_file_parers import Mapping
 from .universe_handler import ResidueIter
 
 def load_cgsmiles_library(filepath):
+    """
+    Given a file that lists cgsmiles strings,
+    read and return a list.
+
+    Parameters
+    ----------
+    filepath: str
+
+    Returns
+    -------
+    list[str]
+    """
     cgsmiles_strs = []
     with open(filepath) as _file:
         for line in _file.readlines():
@@ -28,7 +40,18 @@ def load_cgsmiles_library(filepath):
 def find_one_graph_match(graph1, graph2):
     """
     Returns one ismags match when graphs are isomorphic
-    otherwise [].
+    otherwise []. Matches are done based on element and
+    bond order. That should be sufficent to also account
+    for charges implicitly via the orders.
+
+    Parameters
+    ----------
+    graph1: networkx.Graph
+    graph2: networkx.Graph
+
+    Returns
+    -------
+    abc.iteratable
     """
 
     def node_match(n1, n2):
@@ -61,6 +84,23 @@ def get_mappings(cg, univ, _match, mappings):
     based on the all-atom univ. If a bead is split between
     residues we simply assing the resname and id of the
     majority of atoms.
+
+    Parameters
+    ----------
+    cg: networkx.graph
+        the coarse molecule
+    univ: :class:fast_forward.universe_handler.UniverseHandler
+        the universe stroing the fine grained molecule information
+    _match: dict
+        a dict mapping the coarse atoms to fine grained atoms
+    mappings:
+        dict[:class:fast_forward.map_file_parser.Mapping]
+        a dict of mapping objects
+
+    Return
+    ------
+    dict[:class:fast_forward.map_file_parser.Mapping]
+        updated mappings
     """
     target_resids = {}
     for bead in cg.nodes:
@@ -86,6 +126,17 @@ def get_mappings(cg, univ, _match, mappings):
     return mappings
 
 def _annotate_vs(cg_graph):
+    """
+    If a node in the cg_graph is not mapped from atom positions,
+    it is a virtual site. Thus, we will compose the mapped position
+    as the union framgment graphs of neihgboring atoms. This appraoch
+    should be equivalent to a virtual_sitesn mapping.
+
+    Parameters
+    ----------
+    cg_graph: netwrokx.Graph
+        the graph describing a coarse molecule
+    """
     for node in cg_graph.nodes:
         if len(cg_graph.nodes[node].get('graph',[])) == 0:
             g = nx.Graph()
@@ -104,7 +155,9 @@ def cgsmiles_to_mapping(univ, cgsmiles_strs, mol_names, mol_matching=True):
     univ: :class:`fast_forward.UniverseHandler`
     cgsmiles_strs: list[str]
     mol_names: list[str]
-
+    mol_matching: bool
+        if is False the order of cgsmiles strings is equivalent
+        to the order of molecules
 
     Retunrs
     -------
