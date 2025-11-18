@@ -71,7 +71,6 @@ def get_mappings(cg, univ, _match, mappings):
         resid = _most_common(resids)
         cg.nodes[bead]['resname'] = resname
         cg.nodes[bead]['resid'] = resid
-        print(resname, resid)
         mapping = mappings.get(resname, Mapping(resname, resname))
         target_resid = target_resids.get(resname, resid)
         target_resids[resname] = target_resid
