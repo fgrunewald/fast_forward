@@ -117,8 +117,9 @@ def __main__():
     parser.add_argument('-i', type=str, dest="itp_files", help="itp file", nargs='*')
     parser.add_argument('-d', type=str, dest='reference',
                         help="Path to directory with reference distributions")
-    parser.add_argument('-plots', default=False, action='store_true', dest="plots",
-                        help="make plots comparing distributions")
+    parser.add_argument('-plots', default=None, const=".", nargs="?",
+                        dest="plots",
+                        help="Make plots comparing distributions. Optionally provide a path (default: current dir)")
     parser.add_argument('-outliers', default=False, action='store_true', dest='exclude_outliers',
                         help='exclude outliers from overall score')
     parser.add_argument('-plot-data', default=False, action='store_true', dest="plot_data",
@@ -127,6 +128,9 @@ def __main__():
                         help='weight of the Hellinger distance in the distance score')
     parser.add_argument('-include-constraints', default=False, action='store_true', dest='include_constraints',
                         help='fully include constrained distances in the distance score score calculation')
+    parser.add_argument('-dists', default=False, action='store_true',
+                        dest="distribution_data",
+                        help="Save text files with time series and distribution data for interactions")
 
     args = parser.parse_args()
 
@@ -161,9 +165,9 @@ def __main__():
             interaction_groups, _, _ = interaction_mapper.get_interactions_group(molname)
             for inter_type in ['bonds', 'angles', 'dihedrals']:
                 for group_name, pair_idxs in interaction_groups[inter_type].items():
-                    distr, _ = interaction_distribution(u, inter_type, pair_idxs)
+                    distr, _ = interaction_distribution(u, inter_type, pair_idxs, save=args.distribution_data)
                     # calculate simulation distribution
-                    probs = distr[0].T[1]
+                    probs = distr.T[1]
                     # read in reference distribution
                     try:
                         reference_data = np.loadtxt([i for i in distribution_files if group_name in i and inter_type in i][0])
@@ -181,7 +185,7 @@ def __main__():
                                                          "Reference": reference_data.T[1],
                                                          'Simulated': probs}
         if args.plots:
-            make_distribution_plot(plot_data, args.plot_data)
+            make_distribution_plot(plot_data, args.plot_data, name=f'{args.plots}/distribution_comparison')
         report_interactions(h_score_dict, score_dict, args.exclude_outliers)
         
         # evaluation of distances
@@ -195,8 +199,8 @@ def __main__():
 
             atom_names = [name for _, name in block.nodes(data='atomname')]
             if args.plots:
-                make_matrix_plot(score_m, atom_names, name=f'score_matrix_{molname}')
-                make_distances_distribution_plot(plot_data, atom_names, name=f'distance_distributions_{molname}')
+                make_matrix_plot(score_m, atom_names, name=f'{args.plots}/score_matrix_{molname}')
+                make_distances_distribution_plot(plot_data, atom_names, name=f'{args.plots}/distance_distributions_{molname}')
             report_distances(score_m, molname, atom_names)
 
 __main__()
