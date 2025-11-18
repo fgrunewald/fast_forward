@@ -31,7 +31,7 @@ INTERACTIONS = {'bonds': {'bins': np.arange(0, 7, 0.01)
 VS_TYPES = [key for key in INTERACTIONS.keys() if 'virtual' in key]
 RECOGNISED_INTERACTIONS = list(INTERACTIONS.keys())
 
-def interaction_distribution(u, inter_name, pair_idxs, group_name="", prefix="", save=False, parameters=[]):
+def interaction_distribution(u, inter_name, pair_idxs, group_name="", prefix="", save=None, parameters=[]):
     # i.e. if inter_type not one of virtual_sitesn, virtual_sites3fd, etc.
     if inter_name not in VS_TYPES:
         inter_type = inter_name
@@ -42,7 +42,8 @@ def interaction_distribution(u, inter_name, pair_idxs, group_name="", prefix="",
             time_series[idx*nframes:(idx+1)*nframes] = NORMAL_FUNCS[inter_name](*pair_pos)
 
         if save:
-            np.savetxt("{prefix}{name}_{inter_type}.dat".format(name=group_name,
+            np.savetxt("{dir}/{prefix}{name}_{inter_type}.dat".format(dir=save,
+                                                                name=group_name,
                                                                 inter_type=inter_type,
                                                                 prefix=prefix),
                        time_series)
@@ -50,7 +51,8 @@ def interaction_distribution(u, inter_name, pair_idxs, group_name="", prefix="",
         center_points = edges[:-1] + np.diff(edges)/2.
         distr = np.transpose((center_points, probs))
         if save:
-            np.savetxt("{prefix}{name}_{inter_type}_distr.dat".format(name=group_name,
+            np.savetxt("{dir}/{prefix}{name}_{inter_type}_distr.dat".format(dir=save,
+                                                                      name=group_name,
                                                                       inter_type=inter_type,
                                                                       prefix=prefix),
                        distr)
