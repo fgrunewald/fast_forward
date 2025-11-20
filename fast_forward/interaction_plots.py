@@ -29,7 +29,26 @@ def _plotter(data, atom_list, inter_type, ax):
     ax.set_xlabel(X_LABELS[inter_type])
 
 
-def _plotter_distance_distribution(data, ax):
+def _plotter_distance_distribution(data, ax, y_lower_threshold: float = 0.01):
+    """
+    Plot distance distribution curves and automatically zoom in on
+    regions where the signal exceeds a given fraction of its maximum.
+
+    Parameters
+    ----------
+    data : dict
+        Dictionary containing the distance distribution data.
+        Must include a key ``"x"`` for the shared x-axis values.
+        All other keys correspond to y-data series to be plotted and
+        must be array-like and of the same length as ``data["x"]``.
+    ax : matplotlib.axes.Axes
+        Axes object on which the curves will be plotted.
+    y_lower_threshold : float, optional
+        Fraction of each curve's maximum used to determine the
+        region of interest. Only x-values where ``y > y.max() * threshold``
+        are considered when computing the zoomed x-axis limits.
+        Default is ``0.01``
+    """
     cols = ['#6970E0', '#E06B69']
     needed_keys = [key for key in list(data.keys()) if key != 'x']
     x_min = 100
@@ -41,7 +60,7 @@ def _plotter_distance_distribution(data, ax):
                 data[key],
                 c = cols[idx],
                 label=key)
-        threshold = np.max(data[key]) * 0.01  # e.g., 1% of the peak
+        threshold = np.max(data[key]) * y_lower_threshold
         significant_indices = np.where(data[key] > threshold)[0]
 
         if significant_indices.size > 0: # Only update if we found significant data
