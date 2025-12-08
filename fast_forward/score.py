@@ -1,5 +1,6 @@
 import numpy as np
 import re
+from pathlib import Path
 from fast_forward.interaction_distribution import INTERACTIONS, interaction_distribution
 from fast_forward.itp_to_ag import find_mol_indices
 from collections import defaultdict
@@ -44,26 +45,48 @@ def calc_score(ref, test, weights=[0.7, 0.3], interaction_type='distances'):
     score = hellinger(ref, test) * weights[0] + mean_diff_norm * weights[1] # score is a weighted sum of Hellinger distance and mean difference normalized by standard deviation
     return np.round(score, 2)
 
-def score_matrix(molname, block, universe, distribution_files, hellinger_weight=0.7, include_constrains=False):
+def score_matrix(molname, block, universe, distribution_files, file_prefix: str, hellinger_weight=0.7, include_constrains=False):
     """
-    Calculate the score matrix for all pairwise distances in the molecule block.
+    Compute a pairwise distance score matrix by comparing simulated
+    distributions from the trajectory with reference distributions
+    loaded from disk.
 
     Parameters
     ----------
     molname : str
-        Name of the molecule.
+        Name of the molecule in the universe.
     block : vermouth.molecule.Block
-        Block containing the molecule information.
+        Molecule block containing atom definitions and constraints.
     universe : MDAnalysis.Universe
-        Universe containing the trajectory data.
-    distribution_files : list of str
-        List of file paths to the distribution data files.
-        These files should contain the reference distributions for the pairwise distances.
+        Universe used to compute simulated pairwise distance distributions.
+    distribution_files : list of Path or str
+        Files containing the reference distributions.
+    file_prefix : str
+        Prefix used to construct expected reference filenames.
+    hellinger_weight : float, optional
+        Weight for the Hellinger distance contribution.
+    include_constrains : bool, optional
+        Whether constrained atom pairs should use normal weights.
+
+    Returns
+    -------
+    score_matrix : ndarray
+        Symmetric matrix of pairwise scores.
+    plot_data : dict
+        Reference and simulated distributions for plotting.
     """
 
     plot_data = defaultdict(dict)
     natoms = len(block.nodes)
     score_matrix = np.zeros((natoms, natoms))
+
+    file_map = {}
+    for f in distribution_files:
+        p = Path(f)
+        if p.name in file_map:
+            print(f"Warning: duplicate reference file name '{p.name}', using the first one.")
+            continue
+        file_map[p.name] = p
 
     constraints = []
     for constraint in block.interactions['constraints']:
@@ -81,17 +104,17 @@ def score_matrix(molname, block, universe, distribution_files, hellinger_weight=
             distr = interaction_distribution(universe, 'distances', indices)
             # calculate simulation distribution
             probs = distr[0].T[1]
-            reference_pattern = re.compile(rf'.*(?<!\d){re.escape(group_name)}_distances_distr\.dat$')
+
+            reference_name = f"{file_prefix}{group_name}_distances_distr.dat"
             try:
-                matching_files = [f for f in distribution_files if reference_pattern.search(f)]
-                if not matching_files:
-                    raise IndexError
-                if len(matching_files) > 1:
-                    print(f"Multiple files found for {group_name}, using the first one.")
-                reference_data = np.loadtxt(matching_files[0])
-            except IndexError:
+                ref_file = file_map[reference_name]
+            except KeyError:
                 print(f"{group_name} file not found! If your prefix ends with numbers, this could be the reason.")
+                if file_prefix == "":
+                    print("your prefix is set to the default value: consider changing it to the actual prefix.")
                 continue
+
+            reference_data = np.genfromtxt(ref_file)
             
             # if the distance is constrained, the mean difference is weighted more
             if {node1, node2} in constraints and not include_constrains:

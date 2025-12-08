@@ -4,6 +4,7 @@ Main exe for scoring simulations against mapped trajectories
 """
 import argparse
 from glob import glob
+from pathlib import Path
 import numpy as np
 import MDAnalysis as mda
 import vermouth.forcefield
@@ -117,6 +118,7 @@ def __main__():
     parser.add_argument('-i', type=str, dest="itp_files", help="itp file", nargs='*')
     parser.add_argument('-d', type=str, dest='reference',
                         help="Path to directory with reference distributions")
+    parser.add_argument('-pref', type=str, dest="prefix", help="common prefix to filename", default="")
     parser.add_argument('-plots', default=None, const=".", nargs="?",
                         dest="plots",
                         help="Make plots comparing distributions. Optionally provide a path (default: current dir)")
@@ -128,13 +130,21 @@ def __main__():
                         help='weight of the Hellinger distance in the distance score')
     parser.add_argument('-include-constraints', default=False, action='store_true', dest='include_constraints',
                         help='fully include constrained distances in the distance score score calculation')
-    parser.add_argument('-dists', default=False, action='store_true',
+    parser.add_argument('-dists', default=None, const=".", nargs="?",
                         dest="distribution_data",
-                        help="Save text files with time series and distribution data for interactions")
+                        help="Save text files with time series and distribution data for interactions. Optionally provide a path (default: current dir).")
 
     args = parser.parse_args()
 
     distribution_files = glob(f'{args.reference}/*distr.dat')
+    # create file map
+    file_map = {}
+    for f in distribution_files:
+        p = Path(f)
+        if p.name in file_map:
+            print(f"Warning: duplicate reference file name '{p.name}', using the first one.")
+            continue
+        file_map[p.name] = p
 
     # load trajectory
     if args.tprfile:
@@ -165,15 +175,20 @@ def __main__():
             interaction_groups, _, _ = interaction_mapper.get_interactions_group(molname)
             for inter_type in ['bonds', 'angles', 'dihedrals']:
                 for group_name, pair_idxs in interaction_groups[inter_type].items():
-                    distr, _ = interaction_distribution(u, inter_type, pair_idxs, save=args.distribution_data)
+                    distr, _ = interaction_distribution(u, inter_type, pair_idxs, group_name, args.prefix, save=args.distribution_data)
                     # calculate simulation distribution
                     probs = distr.T[1]
                     # read in reference distribution
+                    reference_name = f"{args.prefix}{group_name}_{inter_type}_distr.dat"
                     try:
-                        reference_data = np.loadtxt([i for i in distribution_files if group_name in i and inter_type in i][0])
-                    except IndexError:
-                        print(f"{group_name} file not found!")
+                        ref_file = file_map[reference_name]
+                    except KeyError:
+                        print(f"{reference_name} file not found!")
+                        if args.prefix == "":
+                            print("your prefix is set to the default value: consider changing it to the actual prefix.")
                         continue
+
+                    reference_data = np.genfromtxt(ref_file)
                     # calculate hellinger distance between simulated and reference distributions
                     h_score = hellinger(probs/probs.sum(), reference_data.T[1] / reference_data.T[1].sum())
                     h_score_dict[inter_type][group_name] = h_score
@@ -194,12 +209,13 @@ def __main__():
         del(plot_data)
         # evaluation of distances
         for molname, block in ff.blocks.items():
-            score_m, plot_data = score_matrix(molname, 
-                                   block, 
-                                   u, 
-                                   distribution_files,
-                                   args.hellinger_weight,
-                                   args.include_constraints)
+            score_m, plot_data = score_matrix(molname=molname, 
+                                   block=block, 
+                                   universe=u, 
+                                   distribution_files=distribution_files,
+                                   file_prefix=args.prefix,
+                                   hellinger_weight=args.hellinger_weight,
+                                   include_constrains=args.include_constraints)
             
             atom_names = [f'{resid}_{name}' for (_, name), (_, resid) in zip(block.nodes(data='atomname'), block.nodes(data='resid'))]
 
