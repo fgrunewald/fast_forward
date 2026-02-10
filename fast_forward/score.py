@@ -10,7 +10,7 @@ def std_dev_hist(hist, bins):
     bin_centers = (bins[:-1] + bins[1:]) / 2
     return np.sqrt(np.cov(bin_centers, aweights=hist, bias=True))
 
-def calc_score(ref, test, weights=[0.7, 0.3], interaction_type='distances'):
+def calc_score(ref, test, weights=None, interaction_type='distances'):
     '''
     Compute the score between two distributions.
     The score is a weighted sum of the Hellinger distance and the difference in means of the distributions
@@ -21,15 +21,20 @@ def calc_score(ref, test, weights=[0.7, 0.3], interaction_type='distances'):
     ref : numpy 1D-array
         Reference distribution.
     test : numpy 1D-array
-        Test distribution.  
-    bins : numpy 1D-array
-        Bins for the distributions, used to calculate the mean difference.
+        Test distribution.
+    weights : list
+        Weights with which to calculate the final score. Should be ordered [Hellinger weight, non-Hellinger weight]
+    interaction_type : str
+        interaction type to calculate the score for.
 
     Returns
     -------
     float
         Score between the two distributions, between [0, 1].
     '''
+    if weights is None:
+        weights = [0.7, 0.3]
+
     bins=INTERACTIONS[interaction_type]['bins']
     ref = ref / np.sum(ref) if np.sum(ref) > 0 else ref # normalize distributions
     test = test / np.sum(test) if np.sum(test) > 0 else test
@@ -43,7 +48,7 @@ def calc_score(ref, test, weights=[0.7, 0.3], interaction_type='distances'):
     score = hellinger(ref, test) * weights[0] + mean_diff_norm * weights[1] # score is a weighted sum of Hellinger distance and mean difference normalized by standard deviation
     return np.round(score, 2)
 
-def score_matrix(molname, block, universe, distribution_files, hellinger_weight=0.7, include_constrains=False):
+def score_matrix(molname, block, universe, distribution_files, hellinger_weight=0.7, include_constraints=False):
     """
     Calculate the score matrix for all pairwise distances in the molecule block.
 
@@ -58,6 +63,10 @@ def score_matrix(molname, block, universe, distribution_files, hellinger_weight=
     distribution_files : list of str
         List of file paths to the distribution data files.
         These files should contain the reference distributions for the pairwise distances.
+    hellinger_weight: float
+        Weighting of the Hellinger score in the final score.
+    include_constraints: bool
+        include constraints in calculation of score
     """
 
     plot_data = defaultdict(dict)
@@ -86,13 +95,13 @@ def score_matrix(molname, block, universe, distribution_files, hellinger_weight=
                 continue
             
             # if the distance is constrained, the mean difference is weighted more
-            if {node1, node2} in constraints and not include_constrains:
-                weigths = [0.2,0.8] # can be adjusted in the future
+            if {node1, node2} in constraints and not include_constraints:
+                weights = [0.2, 0.8] # can be adjusted in the future
             else:
-                weigths = [hellinger_weight, 1-hellinger_weight]
+                weights = [hellinger_weight, 1-hellinger_weight]
 
             # calculate score and populate matrix
-            score = calc_score(reference_data.T[1], probs, weigths, interaction_type='distances')
+            score = calc_score(reference_data.T[1], probs, weights, interaction_type='distances')
             score_matrix[node1, node2] = float(score)
             score_matrix[node2, node1] = float(score)
             plot_data['distances'][group_name] = {"x": reference_data.T[0],
