@@ -43,7 +43,7 @@ def calc_score(ref, test, weights=None, interaction_type='distances'):
 
     mean_diff = np.average(bin_centers, weights=ref) - np.average(bin_centers, weights=test)
     mean_diff_norm = mean_diff / (2 * std_dev_hist(ref, bins)) # normalize mean difference by standard deviation of reference distribution
-    mean_diff_norm = np.min([np.abs(mean_diff), 1]) # 1 as maximum penalty
+    mean_diff_norm = np.min([np.abs(mean_diff_norm), 1]) # 1 as maximum penalty
 
     score = hellinger(ref, test) * weights[0] + mean_diff_norm * weights[1] # score is a weighted sum of Hellinger distance and mean difference normalized by standard deviation
     return np.round(score, 2)
