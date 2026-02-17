@@ -22,7 +22,8 @@ Contents
 ========
 
 .. toctree::
-    :maxdepth: 1
+    :maxdepth: 2
 
     ff_map
     ff_inter
+    ff_assess

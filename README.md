@@ -7,7 +7,7 @@ computing interactions. Atomistic trajectories can be forward
 mapped from mapping files that correspond to backwards mapping
 [style format](http://cgmartini.nl/index.php/2021-martini-online-workshop/tutorials/566-4-backward). Interactions are computed from itp files
 automatically creating the time-series and distribution. Note
-that we use the numba library for paralell acceleration.
+that we use the numba library for parallel acceleration.
 
 ## features
 - residue based mapping description
