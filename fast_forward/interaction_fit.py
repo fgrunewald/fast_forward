@@ -11,6 +11,32 @@ import lmfit
 from collections import defaultdict
 from vermouth.molecule import Interaction
 
+def _is_part_of_dihedral(angle_atoms, dihedrals):
+    """
+    Check if an angle is part of a dihedral
+
+    Parameters
+    ----------
+    angle_atoms: list
+        list of atom indices in the angle
+    dihedrals: list
+        list of dihedrals in the system
+
+    Returns
+    -------
+    bool
+        True if angle is part of a dihedral, False otherwise
+    """
+    match = False
+    for dih in dihedrals:
+        match = (
+            np.array_equal(angle_atoms, dih[0:3]) or
+            np.array_equal(angle_atoms, dih[1:4]) or
+            np.array_equal(angle_atoms[::-1], dih[0:3]) or
+            np.array_equal(angle_atoms[::-1], dih[1:4])
+        )
+    return match
+
 def _gaussian_fitter(x, y, initial_center, initial_sigma, initial_amplitude):
     """
     Fit a Gaussian function to an input distribution
@@ -44,15 +70,26 @@ def _gaussian_fitter(x, y, initial_center, initial_sigma, initial_amplitude):
     return gaussian_result
 
 def _gaussian_generator(x, params):
-
+    """
+    Generate a gaussian function from fitted parameters
+    """
     mod = GaussianModel(x=x)
     pars = Parameters()
     pars.add("center", params['center'].value)
     pars.add("sigma", params['sigma'].value)
     pars.add("amplitude", params['amplitude'].value)
     fitted_distribution = mod.eval(pars, x=x)
-
     return fitted_distribution
+def _periodic_gaussian_generator(x, c, s, a):
+    """
+    Generate a gaussian function from fitted parameters across x with periodicity
+    """
+    terms = 10
+    period = 2*np.pi
+    y = np.zeros_like(x)
+    for k in range(-terms, terms+1):
+        y += np.exp(-0.5 * ((x - c + k * period) / s)**2)
+    return y * a
 
 class InteractionFitter:
     """
@@ -73,6 +110,7 @@ class InteractionFitter:
         max_dihedrals: int
             maximum number of dihedrals to fit proper dihedrals with
         '''
+        self.__dihedrals = None
         self.precision = precision
         self.temperature = temperature
         self.kb = constants["Boltzmann_constant"]
@@ -203,12 +241,12 @@ class InteractionFitter:
         y = data.T[1]
 
         # take care of periodic effects for improper dihedrals
-        x_gauss = np.concatenate((x, x + 2 * np.pi)) - np.pi
+        x_gauss = np.linspace(-2*np.pi, 2*np.pi, 720)
         y_gauss = np.tile(y, 2)
 
         # first try fitting a gaussian to the data in case we have an improper dihedral
-        gaussian_result = _gaussian_fitter(x_gauss[150:-150],
-                                           y_gauss[150:-150],
+        gaussian_result = _gaussian_fitter(x_gauss[120:-120],
+                                           y_gauss[120:-120],
                                            initial_center=dict(value=x[y.argmax()],
                                                                min=-np.pi,
                                                                max=np.pi),
@@ -272,54 +310,105 @@ class InteractionFitter:
 
         else:
             # transform the centre back into the correct domain after fitting to account for periodicity.
-            c0 = (gaussian_result.params['center'] + (2*np.pi)) % (2*np.pi) - np.pi
+            c0 = (gaussian_result.params['center'].value + (2*np.pi)) % (2*np.pi) - np.pi
 
             center = np.round(c0, self.precision)
             sigma = np.round((self.kb * self.temperature) / ((gaussian_result.params['sigma']) ** 2), self.precision)
 
             self.fit_parameters['dihedrals'][group_name] = [center, sigma]
 
-            x_plot = np.degrees((x+(2*np.pi)) % (2*np.pi) - np.pi)
-            fitted_improper_plot = _gaussian_generator(x, gaussian_result.params)[np.argsort(x_plot)]
-            self.plot_parameters['dihedrals'][group_name] = {'x': x_plot,
+            x_plot = np.degrees(((x+np.pi) % (2*np.pi)) - np.pi)
+            fitted_improper_plot = _periodic_gaussian_generator(x,
+                                                                c0,
+                                                                gaussian_result.params['sigma'].value,
+                                                                gaussian_result.params['amplitude'].value)
+            self.plot_parameters['dihedrals'][group_name] = {'x': x_plot[np.argsort(x_plot)],
                                                              'Distribution': y,
                                                              'Fitted': fitted_improper_plot}
 
-    def fit_to_gmx(self, inter_type, group_name, atoms):
+    def _virtual_sites2_handler(self, data, group_name):
+        self.fit_parameters['virtual_sites2'][group_name] = {'params': [data[0][0]]}
+
+    def _virtual_sites2fd_handler(self, data, group_name):
+        self.fit_parameters['virtual_sites2fd'][group_name] = {'params': [data[0][0]]}
+
+    def _virtual_sites3_handler(self, data, group_name):
+        self.fit_parameters['virtual_sites3'][group_name] = {'params': [data[0][0], data[0][1]]}
+
+    def _virtual_sites3out_handler(self, data, group_name):
+        self.fit_parameters['virtual_sites3out'][group_name] = {'params': [data[0][0], data[0][1], data[0][2]]}
+
+    def _virtual_sites3fd_handler(self, data, group_name):
+        self.fit_parameters['virtual_sites3fd'][group_name] = {'params': [data[0][0], data[0][1]]}
+
+    def _virtual_sitesn_handler(self, data, group_name):
+        self.fit_parameters['virtual_sitesn'][group_name] = None
+
+    @property
+    def dihedrals(self):
+        return getattr(self, "__dihedrals", [])
+
+    @dihedrals.setter
+    def dihedrals(self, interaction_groups):
+        self.__dihedrals = [dih for key in interaction_groups['dihedrals'] for dih in interaction_groups['dihedrals'][key]]
+
+    def fit_to_gmx(self, inter_type, group_name, atoms, vs_constructors):
 
         if inter_type == 'bonds':
             parameters = self.fit_parameters['bonds'][group_name]
             center, sigma = parameters
 
-            if sigma < self.constraint_converter:
-                self.interactions_dict['bonds'].append(Interaction(atoms=atoms[0],
-                                                                   parameters=[1, center, sigma],
-                                                                   meta={"comment": group_name}))
-            else:
-                self.interactions_dict['bonds'].append(Interaction(atoms=atoms[0],
-                                                                   parameters=[1, center, 10000],
-                                                                   meta={"ifdef": "FLEXIBLE", "comment": group_name}))
-                self.interactions_dict['constraints'].append(Interaction(atoms=atoms[0],
+            for ag in atoms:
+                if any(x in vs_constructors for x in ag):
+                    self.interactions_dict['bonds'].append(Interaction(atoms=list(ag),
+                                                                       parameters=[1, center, sigma],
+                                                                       meta={"comment": group_name}))
+                else:
+                    if sigma < self.constraint_converter:
+                        self.interactions_dict['bonds'].append(Interaction(atoms=list(ag),
+                                                                           parameters=[1, center, sigma],
+                                                                           meta={"comment": group_name}))
+                    else:
+                        self.interactions_dict['bonds'].append(Interaction(atoms=list(ag),
+                                                                           parameters=[1, center, 10000],
+                                                                           meta={"ifdef": "FLEXIBLE",
+                                                                                 "comment": group_name}))
+                        self.interactions_dict['constraints'].append(Interaction(atoms=list(ag),
+                                                                             parameters=[1, center],
+                                                                             meta={"ifndef": "FLEXIBLE",
+                                                                                   "comment": group_name,
+                                                                                   "fc": sigma}))
+        elif inter_type == 'constraints':
+            parameters = self.fit_parameters['bonds'][group_name]
+            center, sigma = parameters
+
+            for ag in atoms:
+                self.interactions_dict['constraints'].append(Interaction(atoms=list(ag),
                                                                          parameters=[1, center],
-                                                                         meta={"ifndef": "FLEXIBLE",
-                                                                               "comment": group_name}))
+                                                                         meta={"comment": group_name}))
+
         elif inter_type == 'angles':
             parameters = self.fit_parameters['angles'][group_name]
             center, sigma = parameters
 
             # empirically derived. if sigma too big, angles get very unstable.
-            if sigma > 150:
-                sigma = 150
-
-            # empirically derived. For theta_0 > 160, significant ptl energy for type 10 at equilibrium, so enforce type 1.
-            if float(center) < 160:
-                func_type_out = 10
+            sigma = min(sigma, 150)
+            
+            if _is_part_of_dihedral(atoms[0], self.dihedrals): # only assign type 10 if part of a dihedral and theta_0 < 160
+                if float(center) < 160: # empirically derived. For theta_0 > 160, significant ptl energy for type 10 at equilibrium, so enforce type 1.
+                    func_type_out = 10
+                else:
+                    print((f"WARNING: Angle {group_name} is part of a dihedral with equilibrium angle {center:.1f}°. "
+                           f"For theta_0 > 160°, the system may have high potential even energy at equilibrium. "
+                           f"This might cause instabilities."))
+                    func_type_out = 10
             else:
                 func_type_out = 1
 
-            self.interactions_dict['angles'].append(Interaction(atoms=atoms[0],
-                                                                parameters=[func_type_out, center, sigma],
-                                                                meta={"comment": group_name}))
+            for ag in atoms:
+                self.interactions_dict['angles'].append(Interaction(atoms=list(ag),
+                                                                    parameters=[func_type_out, center, sigma],
+                                                                    meta={"comment": group_name}))
 
         elif inter_type == 'dihedrals':
 
@@ -328,32 +417,124 @@ class InteractionFitter:
                 center, sigma = parameters
                 center = np.round(np.degrees(center), self.precision)
 
-                self.interactions_dict['dihedrals'].append(Interaction(atoms=atoms[0],
-                                                                       parameters=[2, center, sigma],
-                                                                       meta={"comment": group_name}))
+                for ag in atoms:
+                    self.interactions_dict['dihedrals'].append(Interaction(atoms=list(ag),
+                                                                           parameters=[2, center, sigma],
+                                                                           meta={"comment": group_name}))
             else:
-                for i in parameters.values():
-                    # factors derived from the fitting directly have negligible effects (~10^-3/4),
-                    # scaling them helps increase the strength of dihedral in the final interaction
-                    k = - i[0] * self.dihedral_scaling
-                    x0_deg = np.degrees(i[1])
-                    n = i[2]
-                    self.interactions_dict['dihedrals'].append(Interaction(atoms=atoms[0],
-                                                                           parameters=[9,  # function type
-                                                                                       np.round(x0_deg, self.precision), # center
-                                                                                       np.round(k, self.precision), # force constant
-                                                                                       int(n) # multiplicity
-                                                                                       ],
-                                                                           meta={"comment": group_name,
-                                                                                 "group": group_name}))
+                for ag in atoms:
+                    for i in parameters.values():
+                        # factors derived from the fitting directly have negligible effects (~10^-3/4),
+                        # scaling them helps increase the strength of dihedral in the final interaction
+                        k = - i[0] * self.dihedral_scaling
+                        x0_deg = np.degrees(i[1])
+                        n = i[2]
+                        self.interactions_dict['dihedrals'].append(Interaction(atoms=ag,
+                                                                               parameters=[9,  # function type
+                                                                                           np.round(x0_deg, self.precision), # center
+                                                                                           np.round(k, self.precision), # force constant
+                                                                                           int(n) # multiplicity
+                                                                                           ],
+                                                                               meta={"comment": group_name,
+                                                                                     "group": group_name}))
 
+        elif inter_type == 'virtual_sites2':
+            parameters = self.fit_parameters['virtual_sites2'][group_name]['params']
+            for ag in atoms:
+                self.interactions_dict['virtual_sites2'].append(Interaction(atoms=ag,
+                                                                            parameters=[1,
+                                                                                        np.round(parameters[0],
+                                                                                                 self.precision)
+                                                                                        ],
+                                                                            meta={"comment": group_name}
+                                                                            ))
+        elif inter_type == 'virtual_sites2fd':
+            parameters = self.fit_parameters['virtual_sites2fd'][group_name]['params']
+            for ag in atoms:
+                self.interactions_dict['virtual_sites2'].append(Interaction(atoms=ag,
+                                                                            parameters=[2,
+                                                                                        np.round(parameters[0],
+                                                                                                 self.precision),
+                                                                                        ],
+                                                                            meta={"comment": group_name}
+                                                                            ))
+        elif inter_type == 'virtual_sites3':
+            parameters = self.fit_parameters['virtual_sites3'][group_name]['params']
+            for ag in atoms:
+                self.interactions_dict['virtual_sites3'].append(Interaction(atoms=ag,
+                                                                            parameters=[1,
+                                                                                        np.round(parameters[0],
+                                                                                                 self.precision),
+                                                                                        np.round(parameters[1],
+                                                                                                 self.precision),
+                                                                                        ],
+                                                                            meta={"comment": group_name}
+                                                                            ))
+        elif inter_type == 'virtual_sites3fd':
+            parameters = self.fit_parameters['virtual_sites3fd'][group_name]['params']
+            for ag in atoms:
+                self.interactions_dict['virtual_sites3'].append(Interaction(atoms=ag,
+                                                                            parameters=[2,
+                                                                                        np.round(parameters[0],
+                                                                                                 self.precision),
+                                                                                        np.round(parameters[1],
+                                                                                                 self.precision),
+                                                                                        ],
+                                                                            meta={"comment": group_name}
+                                                                            ))
 
+        elif inter_type == 'virtual_sites3out':
+            parameters = self.fit_parameters['virtual_sites3out'][group_name]['params']
+            for ag in atoms:
+                self.interactions_dict['virtual_sites3'].append(Interaction(atoms=ag,
+                                                                    parameters=[4,
+                                                                                np.round(parameters[0],
+                                                                                         self.precision),
+                                                                                np.round(parameters[1],
+                                                                                         self.precision),
+                                                                                np.round(parameters[2],
+                                                                                         self.precision),
+                                                                                ],
+                                                                    meta={"comment": group_name}
+                                                                    ))
 
+        elif inter_type == 'virtual_sitesn':
+            pars = [1] + [i+1 for i in atoms[0][1:]]
+            self.interactions_dict['virtual_sitesn'].append(Interaction(atoms=[atoms[0][0]],
+                                                                        parameters=pars,
+                                                                        meta={"comment": group_name}))
 
-    def fit_interaction(self, data, atoms, group_name, inter_type):
+    def fit_interaction(self, data, atoms, group_name, inter_type, vs_constructors=[]):
+        """
+
+        Fit an interaction for a group of atoms, and assign the fitted
+        parameters to gromacs variables in self.interactions_dict
+
+        Parameters
+        ----------
+        data: np.array
+            histogram of input data
+        atoms: list
+            (lists of) atom indices involved in the given interaction
+        group_name: str
+            name of interaction group
+        inter_type: str
+            name of interaction type being analysed
+        vs_constructors: list
+            indices of atoms which are virtual sites. Cannot construct constraints from
+            virtual sites, so these will be overwritten if found.
+
+        """
         func_dict = {'bonds': self._bonds_fitter,
+                     'constraints': self._bonds_fitter,
                      'angles': self._angles_fitter,
-                     'dihedrals': self._dihedrals_fitter
+                     'dihedrals': self._dihedrals_fitter,
+                     'virtual_sites2': self._virtual_sites2_handler,
+                     'virtual_sites2fd': self._virtual_sites2fd_handler,
+                     'virtual_sites3': self._virtual_sites3_handler,
+                     'virtual_sites3fd': self._virtual_sites3fd_handler,
+                     'virtual_sites3out': self._virtual_sites3out_handler,
+                     'virtual_sitesn': self._virtual_sitesn_handler
                      }
         func_dict[inter_type](data, group_name)
-        self.fit_to_gmx(inter_type, group_name, atoms)
+        self.fit_to_gmx(inter_type, group_name, atoms, vs_constructors)
