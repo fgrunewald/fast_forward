@@ -188,7 +188,7 @@ def __main__():
                                                          "Reference": reference_data.T[1],
                                                          'Simulated': probs}
         if args.plots:
-            make_distribution_plot(plot_data, args.plot_data, name=f'{args.plots}/distribution_comparison')
+            make_distribution_plot(plot_data, args.plot_data, name=f'{args.plots}/interaction_distributions_{molname}')
         report_interactions(h_score_dict, score_dict, args.exclude_outliers)
         
         # evaluation of distances
